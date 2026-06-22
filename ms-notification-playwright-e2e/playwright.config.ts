@@ -10,7 +10,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: env.name === 'prod' ? 1 : undefined,
+  workers: env.name === 'local' || env.name === 'prod' ? 1 : undefined,
   outputDir: `test-results/${env.name}`,
   reporter: [
     ['list'],

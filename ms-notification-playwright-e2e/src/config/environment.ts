@@ -42,7 +42,8 @@ export function loadEnvironment(): EnvironmentConfig {
   dotenv.config({ path: path.resolve(process.cwd(), `.env.${name}`) });
   dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-  const baseURL = requireEnv('MS_NOTIFICATION_BASE_URL');
+  const configuredBaseURL = requireEnv('MS_NOTIFICATION_BASE_URL');
+  const baseURL = configuredBaseURL.endsWith('/') ? configuredBaseURL : `${configuredBaseURL}/`;
 
   return {
     name,

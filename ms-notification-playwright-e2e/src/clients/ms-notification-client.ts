@@ -9,56 +9,56 @@ export class MsNotificationClient {
   ) {}
 
   health(): Promise<APIResponse> {
-    return this.request.get('/actuator/health');
+    return this.request.get('actuator/health');
   }
 
   sendSms(data: unknown, credentialsAlias = this.env.credentialsAlias): Promise<APIResponse> {
-    return this.request.post('/sms', {
+    return this.request.post('sms', {
       headers: { 'Credentials-Alias': credentialsAlias },
       data
     });
   }
 
   sendWhatsapp(data: unknown, credentialsAlias = this.env.credentialsAlias): Promise<APIResponse> {
-    return this.request.post('/whatsapp', {
+    return this.request.post('whatsapp', {
       headers: { 'Credentials-Alias': credentialsAlias },
       data
     });
   }
 
   sendVoucherAdhoc(data: unknown, credentialsAlias = this.env.credentialsAlias): Promise<APIResponse> {
-    return this.request.post('/vouchers/adhoc', {
+    return this.request.post('vouchers/adhoc', {
       headers: { 'Credentials-Alias': credentialsAlias },
       data
     });
   }
 
   routeasyWebhook(data: unknown): Promise<APIResponse> {
-    return this.request.post('/routeasy-webhook', { data });
+    return this.request.post('routeasy-webhook', { data });
   }
 
   createNotification(data: unknown, clientId = this.env.clientId): Promise<APIResponse> {
-    return this.request.post('/notifications', {
+    return this.request.post('notifications', {
       headers: { client_id: clientId },
       data
     });
   }
 
   createNotificationCollection(data: unknown, clientId = this.env.clientId): Promise<APIResponse> {
-    return this.request.post('/notifications/collection', {
+    return this.request.post('notifications/collection', {
       headers: { client_id: clientId },
       data
     });
   }
 
   listNotifications(query = '', clientId = this.env.clientId): Promise<APIResponse> {
-    return this.request.get(`/notifications${query}`, {
+    return this.request.get(`notifications${query}`, {
       headers: { client_id: clientId }
     });
   }
 
   updateNotificationStatus(id: string, status: string, clientId = this.env.clientId): Promise<APIResponse> {
-    return this.request.patch(`/notifications/${id}`, {
+    return this.request.patch(`notifications/${id}`, {
       headers: { client_id: clientId },
       data: { status }
     });

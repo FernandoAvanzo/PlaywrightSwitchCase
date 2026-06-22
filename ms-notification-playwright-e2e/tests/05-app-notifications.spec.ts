@@ -43,7 +43,7 @@ test.describe('Notificações de aplicativo', () => {
     const create = await apiClient.createNotification(notificationPayload({ ownerId }));
     await expectStatus(create, 201);
 
-    const list = await apiClient.listNotifications(`?owner-id=${ownerId}&_offset=0&_limit=10`);
+    const list = await apiClient.listNotifications(`?owner-id=${ownerId}&type=ORDER&_offset=0&_limit=10`);
     await expectStatus(list, 200);
     const body = await list.json() as unknown;
     const notifications = Array.isArray(body) ? body : (body as { content?: unknown[] }).content ?? [];

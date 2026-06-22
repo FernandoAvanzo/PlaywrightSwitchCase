@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -f .env.local ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env.local
+  set +a
+fi
+
 echo "==> Subindo infraestrutura local e ms-notification"
 docker compose --env-file .env.local -f infra/docker-compose.local.yml up -d --build
 

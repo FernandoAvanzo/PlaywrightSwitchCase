@@ -10,7 +10,7 @@ test.describe('Envio de WhatsApp', () => {
     const response = await apiClient.sendWhatsapp(whatsappPayload({ transactionId: 'trx-whatsapp-playwright-001' }));
 
     await expectStatus(response, 202);
-    expect(await mockInfra.countRequests('.*(whatsapp|infobip).*')).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => mockInfra.countRequests('.*(whatsapp|infobip).*')).toBeGreaterThanOrEqual(1);
   });
 
   test('@local @local-only CT-008 - enviar WhatsApp usando template', async ({ apiClient, mockInfra }) => {

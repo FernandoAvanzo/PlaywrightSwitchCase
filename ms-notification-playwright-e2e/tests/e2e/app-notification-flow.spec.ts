@@ -9,7 +9,7 @@ test.describe('E2E - Notificações persistidas', () => {
     const create = await apiClient.createNotification(notificationPayload({ ownerId }));
     await expectStatus(create, 201);
 
-    const list = await apiClient.listNotifications(`?owner-id=${ownerId}&status=UNREAD&_offset=0&_limit=10`);
+    const list = await apiClient.listNotifications(`?owner-id=${ownerId}&type=ORDER&status=UNREAD&_offset=0&_limit=10`);
     await expectStatus(list, 200);
 
     const body = await list.json() as unknown;

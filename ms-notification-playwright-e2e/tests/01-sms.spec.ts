@@ -10,7 +10,7 @@ test.describe('Envio de SMS', () => {
     const response = await apiClient.sendSms(smsPayload({ transactionId: 'trx-sms-playwright-001' }));
 
     await expectStatus(response, 202);
-    expect(await mockInfra.countRequests('.*(sms|infobip).*')).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => mockInfra.countRequests('.*(sms|infobip).*')).toBeGreaterThanOrEqual(1);
   });
 
   test('@contract CT-003 - rejeitar SMS sem telefone', async ({ apiClient }) => {

@@ -56,7 +56,28 @@ export class MockInfraClient {
       name: 'sms-provider-success',
       urlPattern: '.*(sms|infobip).*',
       status: 200,
-      body: { status: 'ACCEPTED', channel: 'SMS', providerMessageId: 'sms-mock-ok' }
+      body: {
+        sendSmsResponse: {
+          statusCode: '00',
+          statusDescription: 'OK',
+          detailCode: '000',
+          detailDescription: 'Message sent'
+        },
+        bulkId: 'bulk-sms-mock-ok',
+        messages: [
+          {
+            messageId: 'sms-mock-ok',
+            destination: '5511988881234',
+            status: {
+              groupId: 3,
+              groupName: 'DELIVERED',
+              id: 5,
+              name: 'DELIVERED_TO_HANDSET',
+              description: 'Message delivered'
+            }
+          }
+        ]
+      }
     });
   }
 
@@ -74,7 +95,18 @@ export class MockInfraClient {
       name: 'whatsapp-provider-success',
       urlPattern: '.*(whatsapp|infobip).*',
       status: 200,
-      body: { status: 'ACCEPTED', channel: 'WHATSAPP', providerMessageId: 'wa-mock-ok' }
+      body: {
+        sendWhatsappResponse: {
+          id: `mock-${Date.now()}`,
+          providerMessageId: 'wa-mock-ok',
+          accepted: true,
+          status: 'ACCEPTED',
+          statusCode: '00',
+          statusDescription: 'OK',
+          detailCode: '000',
+          detailDescription: 'Message accepted'
+        }
+      }
     });
   }
 
@@ -109,10 +141,8 @@ export class MockInfraClient {
     const api = await this.api();
     const response = await api.post('/__admin/requests/count', {
       data: {
-        requestPattern: {
-          method: 'POST',
-          urlPattern
-        }
+        method: 'POST',
+        urlPattern
       }
     });
     expect(response.ok()).toBeTruthy();

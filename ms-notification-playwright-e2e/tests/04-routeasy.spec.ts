@@ -11,7 +11,7 @@ test.describe('Webhook Routeasy', () => {
     const response = await apiClient.routeasyWebhook(routeasyPayload());
 
     await expectStatus(response, 202);
-    expect(await mockInfra.countRequests('.*(sms|infobip).*')).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => mockInfra.countRequests('.*(sms|infobip).*')).toBeGreaterThanOrEqual(1);
   });
 
   test('@local @local-only CT-022 - evento não mapeado não dispara SMS', async ({ apiClient, mockInfra }) => {

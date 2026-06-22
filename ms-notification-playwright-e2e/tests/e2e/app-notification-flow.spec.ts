@@ -3,6 +3,20 @@ import { notificationPayload } from '../../src/data/payloads';
 import { expectStatus } from '../../src/utils/response';
 
 test.describe('E2E - Notificações persistidas', () => {
+  /**
+   * Valida o fluxo ponta a ponta de uma notificação persistida no aplicativo,
+   * cobrindo desde a criação do recurso até sua consulta e atualização de status.
+   *
+   * Regras de negócio cobertas:
+   * - Uma notificação válida deve ser criada com sucesso para um proprietário específico.
+   * - A criação da notificação deve retornar HTTP 201, indicando persistência do recurso.
+   * - A notificação recém-criada deve estar disponível para consulta pelo `owner-id` informado.
+   * - A listagem deve permitir filtrar notificações por proprietário, tipo, status e paginação.
+   * - Notificações criadas inicialmente devem poder ser encontradas com status `UNREAD`.
+   * - Uma notificação existente deve permitir atualização de status para `READ`.
+   * - A atualização de status bem-sucedida deve retornar HTTP 204, indicando execução sem corpo de resposta.
+   * - O fluxo completo deve garantir que o ciclo de vida básico da notificação persistida funcione corretamente.
+   */
   test('@e2e @local @local-only E2E-005 - criação, leitura e atualização', async ({ apiClient }) => {
     const ownerId = `usuario-e2e-${Date.now()}`;
 

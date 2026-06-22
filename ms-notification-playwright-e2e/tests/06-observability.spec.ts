@@ -4,6 +4,22 @@ import { whatsappPayload } from '../src/data/payloads';
 import { expectStatus } from '../src/utils/response';
 
 test.describe('Observabilidade e segurança operacional', () => {
+  /**
+   * Valida que o fluxo de envio de WhatsApp não expõe dados sensíveis de forma integral
+   * nos logs operacionais da aplicação, mesmo quando ocorre falha no provedor externo.
+   *
+   * Regras de negócio cobertas:
+   * - A API deve aceitar a solicitação de envio de WhatsApp com HTTP 202, mantendo o
+   *   contrato de processamento assíncrono.
+   * - Dados sensíveis presentes no payload, como código de voucher, não devem ser
+   *   registrados integralmente nos logs da aplicação.
+   * - Informações pessoais do destinatário, como número de telefone, não devem aparecer
+   *   nos logs em formato bruto dentro do payload serializado.
+   * - Falhas simuladas na integração externa não devem comprometer as regras de
+   *   mascaramento, anonimização ou não exposição de dados sensíveis.
+   * - O serviço deve preservar requisitos de segurança operacional e observabilidade,
+   *   permitindo análise de falhas sem vazar informações confidenciais do cliente.
+   */
   test('@local @local-only CT-029/CT-030 - logs não devem expor payload sensível integral', async ({ apiClient, mockInfra }) => {
     await mockInfra.stubWhatsappFailure(500);
 

@@ -4,6 +4,9 @@
   "description": "Playwright API/E2E tests for ms-notification with local mocked infrastructure.",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "playwright test",
     "test:local": "bash scripts/run-local.sh",

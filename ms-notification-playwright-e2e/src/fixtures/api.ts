@@ -1,4 +1,4 @@
-import { test as base, expect, APIRequestContext, request } from '@playwright/test';
+import { test as base, expect, request } from '@playwright/test';
 import { MsNotificationClient } from '../clients/ms-notification-client';
 import { MockInfraClient } from '../clients/mock-infra-client';
 import { SqsTestClient } from '../clients/sqs-test-client';
@@ -32,4 +32,5 @@ export const test = base.extend<Fixtures>({
   }
 });
 
-export { expect, APIRequestContext, request };
+export { expect, request };
+export type { APIRequestContext } from '@playwright/test';

@@ -2,6 +2,7 @@ node_modules/
 test-results/
 playwright-report/
 reports/
+.env
 .env.hml
 .env.prod
 .DS_Store

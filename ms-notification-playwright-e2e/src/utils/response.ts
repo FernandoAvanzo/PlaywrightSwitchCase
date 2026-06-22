@@ -1,4 +1,5 @@
-import { APIResponse, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import type { APIResponse } from '@playwright/test';
 
 export async function expectStatus(response: APIResponse, expected: number): Promise<void> {
   const text = await response.text();

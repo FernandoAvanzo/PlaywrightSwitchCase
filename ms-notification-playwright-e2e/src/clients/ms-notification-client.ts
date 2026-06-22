@@ -1,5 +1,6 @@
-import { APIRequestContext, APIResponse, expect } from '@playwright/test';
-import { EnvironmentConfig } from '../config/environment';
+import { expect } from '@playwright/test';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
+import type { EnvironmentConfig } from '../config/environment';
 
 export class MsNotificationClient {
   constructor(

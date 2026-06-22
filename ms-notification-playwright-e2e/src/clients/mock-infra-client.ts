@@ -1,4 +1,5 @@
-import { request, APIRequestContext, expect } from '@playwright/test';
+import { request, expect } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 
 type StubOptions = {
   name: string;

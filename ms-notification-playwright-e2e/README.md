@@ -15,9 +15,12 @@ Projeto Playwright para testes API/E2E do microserviço `ms-notification`, com s
 ## Instalação
 
 ```bash
+nvm use
 npm install
 npx playwright install --with-deps
 ```
+
+No Linux, o passo `--with-deps` pode pedir a senha do `sudo` para instalar bibliotecas do sistema.
 
 ## Execução local completa
 

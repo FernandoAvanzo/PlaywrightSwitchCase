@@ -1,0 +1,29 @@
+{
+  "name": "ms-notification-playwright-e2e",
+  "version": "1.0.0",
+  "description": "Playwright API/E2E tests for ms-notification with local mocked infrastructure.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "bash scripts/run-local.sh",
+    "test:local:no-docker": "cross-env TEST_ENV=local playwright test --grep \"@(smoke|contract|local|e2e)\"",
+    "test:hml": "cross-env TEST_ENV=hml playwright test --grep-invert \"@local-only\"",
+    "test:prod": "cross-env TEST_ENV=prod playwright test --grep \"@(smoke|contract)\"",
+    "test:prod:smoke": "cross-env TEST_ENV=prod playwright test tests/00-health.spec.ts tests/01-sms.spec.ts tests/02-whatsapp.spec.ts tests/03-voucher-adhoc.spec.ts --grep \"@(smoke|contract)\"",
+    "report": "playwright show-report reports/html",
+    "compose:up": "docker compose --env-file .env.local -f infra/docker-compose.local.yml up -d --build",
+    "compose:down": "docker compose --env-file .env.local -f infra/docker-compose.local.yml down -v",
+    "compose:logs": "docker compose --env-file .env.local -f infra/docker-compose.local.yml logs -f ms-notification",
+    "lint:env": "tsx scripts/validate-env.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.0",
+    "@types/node": "^22.0.0",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "@aws-sdk/client-sqs": "^3.716.0"
+  }
+}

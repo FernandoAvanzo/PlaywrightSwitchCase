@@ -1,0 +1,146 @@
+name: ms-notification-playwright-local
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ms-notification-mysql
+    command: ["--mysql-native-password=ON"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-notification}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_USER: ${MYSQL_USER:-notification}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-notification}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: ms-notification-localstack
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./localstack/init/ready.d:/etc/localstack/init/ready.d:ro
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs list-queues >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  wiremock:
+    image: wiremock/wiremock:3.9.2
+    container_name: ms-notification-wiremock
+    command: ["--verbose", "--global-response-templating"]
+    ports:
+      - "18089:8080"
+    volumes:
+      - ./wiremock/mappings:/home/wiremock/mappings:ro
+      - ./wiremock/__files:/home/wiremock/__files:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/__admin/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  ms-notification:
+    container_name: ms-notification-app
+    build:
+      context: ${MS_NOTIFICATION_SOURCE_DIR:-../ms-notification}
+      dockerfile: Dockerfile
+    ports:
+      - "${MS_NOTIFICATION_PORT:-18001}:${MS_NOTIFICATION_CONTAINER_PORT:-8080}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      wiremock:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SERVER_PORT: ${MS_NOTIFICATION_CONTAINER_PORT:-8080}
+      SERVER_SERVLET_CONTEXT_PATH: /notification/v1
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-notification}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-notification}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-notification}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      FLYWAY_ENABLED: "true"
+
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      AWS_ENDPOINT: http://localstack:4566
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      CLOUD_AWS_SQS_ENDPOINT: http://localstack:4566
+      CLOUD_AWS_REGION_STATIC: ${AWS_REGION:-us-east-1}
+
+      SQS_SMS_RETRY_QUEUE: ${SQS_SMS_RETRY_QUEUE:-ms-notification-sms-retry}
+      SQS_SMS_HOSPITAL_QUEUE: ${SQS_SMS_HOSPITAL_QUEUE:-ms-notification-sms-hospital}
+      SQS_WHATSAPP_RETRY_QUEUE: ${SQS_WHATSAPP_RETRY_QUEUE:-ms-notification-whatsapp-retry}
+      SQS_WHATSAPP_HOSPITAL_QUEUE: ${SQS_WHATSAPP_HOSPITAL_QUEUE:-ms-notification-whatsapp-hospital}
+      SQS_ROUTEASY_HOSPITAL_QUEUE: ${SQS_ROUTEASY_HOSPITAL_QUEUE:-ms-notification-routeasy-hospital}
+      SQS_NOTIFICATION_RETRY_QUEUE: ${SQS_NOTIFICATION_RETRY_QUEUE:-ms-notification-notification-retry}
+
+      SMS_PROVIDER_BASE_URL: ${SMS_PROVIDER_BASE_URL:-http://wiremock:8080/sms-provider}
+      SMS_BASE_URL: ${SMS_PROVIDER_BASE_URL:-http://wiremock:8080/sms-provider}
+      INFOBIP_PROVIDER_BASE_URL: ${INFOBIP_PROVIDER_BASE_URL:-http://wiremock:8080/infobip}
+      INFOBIP_BASE_URL: ${INFOBIP_PROVIDER_BASE_URL:-http://wiremock:8080/infobip}
+      WHATSAPP_PROVIDER_BASE_URL: ${WHATSAPP_PROVIDER_BASE_URL:-http://wiremock:8080/whatsapp-provider}
+      WHATSAPP_BASE_URL: ${WHATSAPP_PROVIDER_BASE_URL:-http://wiremock:8080/whatsapp-provider}
+      SHORTENER_BASE_URL: ${SHORTENER_BASE_URL:-http://wiremock:8080/shortener}
+      FIREBASE_DYNAMIC_LINKS_BASE_URL: ${FIREBASE_DYNAMIC_LINKS_BASE_URL:-http://wiremock:8080/firebase}
+
+      CREDENTIALS_ALIAS_DEFAULT: ${CREDENTIALS_ALIAS_DEFAULT:-default}
+      CREDENTIALS_ALIAS_VOUCHERS: ${CREDENTIALS_ALIAS_VOUCHERS:-vouchers}
+      SMS_DEFAULT_USERNAME: ${SMS_DEFAULT_USERNAME:-local-sms-user}
+      SMS_DEFAULT_PASSWORD: ${SMS_DEFAULT_PASSWORD:-local-sms-pass}
+      WHATSAPP_DEFAULT_USERNAME: ${WHATSAPP_DEFAULT_USERNAME:-local-whatsapp-user}
+      WHATSAPP_DEFAULT_PASSWORD: ${WHATSAPP_DEFAULT_PASSWORD:-local-whatsapp-pass}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:${MS_NOTIFICATION_CONTAINER_PORT:-8080}/notification/v1/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.54.0-noble
+    profiles: ["test"]
+    working_dir: /work
+    volumes:
+      - ..:/work
+    environment:
+      TEST_ENV: local
+      MS_NOTIFICATION_BASE_URL: http://ms-notification:${MS_NOTIFICATION_CONTAINER_PORT:-8080}/notification/v1
+      MOCK_BASE_URL: http://wiremock:8080
+      AWS_ENDPOINT: http://localstack:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      CLIENT_ID: ${CLIENT_ID:-client-test-001}
+    depends_on:
+      ms-notification:
+        condition: service_healthy
+    command: ["bash", "-lc", "npm ci || npm install && npx playwright test --grep '@(smoke|contract|local|e2e)'"]
+
+volumes:
+  mysql-data:
+  localstack-data:

@@ -158,3 +158,5 @@ dmypy.json
 /.junie/*.*
 /.junie/*/
 /.junie/*/*.*
+/ms-voucher-playwright-e2e/package-lock.json
+/package-lock.json

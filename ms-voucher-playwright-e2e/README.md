@@ -9,6 +9,7 @@ Projeto Playwright para validar a API `ms-voucher` com testes BDD/E2E automatiza
 - Perfis de ambiente para execução local, HML e PROD.
 - Stubs WireMock para `ms-notification` e SOA/EBS.
 - Relatório técnico em `docs/relatorio-tecnico-playwright-ms-voucher.md`.
+- Relatório de diagnóstico e correções locais em `docs/relatorio-tecnico-ajustes-execucao-local.md`.
 - Matriz BDD e rastreabilidade em `docs/matriz-bdd-e2e.md`.
 
 ## Pré-requisitos
@@ -32,9 +33,30 @@ npx playwright install --with-deps
 ```bash
 cp .env.local.example .env.local
 npm run infra:up      # somente dependências mockadas
-npm run infra:up:app  # dependências + ms-voucher, se o projeto estiver clonado
+npm run infra:up:app  # dependências + ms-voucher
+npm run doctor:env
 npm run test:local
 npm run infra:down
+```
+
+O `MS_VOUCHER_PROJECT_DIR` do `.env.local` aponta, por padrão, para `../../../ms-voucher`, considerando o layout:
+
+```text
+ultragaz/
+├── ms-voucher/
+└── PlaywrightSwitchCase/
+    └── ms-voucher-playwright-e2e/
+```
+
+Se o `ms-voucher` estiver em outro diretório, ajuste `MS_VOUCHER_PROJECT_DIR` antes de rodar `infra:up:app`.
+
+Comandos úteis:
+
+```bash
+npm run infra:config   # renderiza e valida o Compose
+npm run infra:ps       # lista containers do projeto
+npm run infra:logs     # logs das dependências
+npm run infra:logs:app # logs do ms-voucher
 ```
 
 ### HML
@@ -82,3 +104,10 @@ As variáveis da aplicação local ficam em `docker/env/ms-voucher.local.env`.
 As variáveis da suíte Playwright ficam em `.env.local`, `.env.hml` ou `.env.prod`.
 
 Use `npm run doctor:env` para validar se variáveis essenciais foram configuradas antes de executar testes mutantes.
+
+## Observações locais
+
+- O Compose usa `COMPOSE_PROJECT_NAME=ms-voucher-playwright-local` e não fixa `container_name`; isso evita conflito com containers de outros projetos.
+- As portas publicadas podem ser alteradas em `.env.local`: `MS_VOUCHER_PORT`, `MYSQL_PORT`, `REDIS_PORT`, `LOCALSTACK_PORT`, `NOTIFICATION_WIREMOCK_PORT`, `SOA_WIREMOCK_PORT` e `ORACLE_PORT`.
+- Migrations locais de apoio ficam em `docker/ms-voucher-migrations` e são aplicadas pelo Flyway somente no perfil local do Compose.
+- A suíte roda com `workers: 1` porque alguns testes importam regras de preço e compartilham estado no banco local.

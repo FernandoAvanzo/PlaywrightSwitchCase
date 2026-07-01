@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loadEnv } from '../../src/config/env';
-import { MsVoucherClient } from '../../src/api/msVoucherClient';
-import { pricingRule, percentageDiscountRule } from '../../src/data/pricingRules';
-import { expectJsonResponse } from '../../src/utils/assertions';
-import { blockProdMutation, skipWhenMissing, skipWhenMutationNotAllowed } from '../../src/utils/guards';
+import { loadEnv } from '../../src/config/env.js';
+import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
+import { pricingRule, percentageDiscountRule, nextPricingRuleCode } from '../../src/data/pricingRules.js';
+import { expectJsonResponse } from '../../src/utils/assertions.js';
+import { blockProdMutation, skipWhenMissing, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 
@@ -20,7 +20,7 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-009 @pricing @contract',
   test('PRIC-001 | Importar regra válida com normalizações', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const rule = pricingRule({
-      codigoRegra: Number(Date.now().toString().slice(-8)),
+      codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
       uf: 'ba'
@@ -36,7 +36,7 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-009 @pricing @contract',
   test('PRIC-002 | Reimportar payload idêntico deve ser idempotente', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const rule = pricingRule({
-      codigoRegra: Number(Date.now().toString().slice(-8)),
+      codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode
     });
@@ -53,7 +53,7 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-009 @pricing @contract',
 
   test('PRIC-003 | Atualizar regra existente pelo mesmo codigoRegra', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
-    const codigoRegra = Number(Date.now().toString().slice(-8));
+    const codigoRegra = nextPricingRuleCode();
     const original = pricingRule({
       codigoRegra,
       cnpj: env.data.cnpjDistribuidor,
@@ -73,7 +73,7 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-009 @pricing @contract',
 
   test('PRIC-004 | Duplicidade de codigoRegra no lote deve falhar', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
-    const codigoRegra = Number(Date.now().toString().slice(-8));
+    const codigoRegra = nextPricingRuleCode();
     const ruleA = pricingRule({ codigoRegra, cnpj: env.data.cnpjDistribuidor, produto: env.data.productCode });
     const ruleB = pricingRule({ codigoRegra, cnpj: env.data.cnpjDistribuidor, produto: env.data.productCode, novoValor: 90 });
 
@@ -121,7 +121,7 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-009 @pricing @contract',
   test('PRIC-008 | tipoValor deve ser inferido quando payload tem decrescimo', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const rule = percentageDiscountRule({
-      codigoRegra: Number(Date.now().toString().slice(-8)),
+      codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
       decrescimo: 10

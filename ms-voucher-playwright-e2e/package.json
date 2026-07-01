@@ -13,14 +13,17 @@
     "test:pricing": "playwright test tests/pricing",
     "test:notification": "playwright test tests/notification",
     "report": "playwright show-report",
-    "infra:up": "docker compose --env-file .env.local -f docker/docker-compose.local.yml up -d --build",
-    "infra:down": "docker compose --env-file .env.local -f docker/docker-compose.local.yml down -v",
-    "infra:logs": "docker compose --env-file .env.local -f docker/docker-compose.local.yml logs -f ms-voucher ms-notification-wiremock soa-wiremock",
+    "infra:up": "docker compose --env-file .env.local -f docker/docker-compose.local.yml up -d --build --remove-orphans",
+    "infra:down": "docker compose --env-file .env.local -f docker/docker-compose.local.yml down -v --remove-orphans",
+    "infra:logs": "docker compose --env-file .env.local -f docker/docker-compose.local.yml logs -f mysql redis localstack ms-notification-wiremock soa-wiremock",
+    "infra:logs:app": "docker compose --env-file .env.local -f docker/docker-compose.local.yml logs -f ms-voucher",
+    "infra:ps": "docker compose --env-file .env.local -f docker/docker-compose.local.yml ps",
+    "infra:config": "docker compose --env-file .env.local -f docker/docker-compose.local.yml config",
     "doctor:env": "tsx scripts/doctor-env.ts",
     "seed:local": "tsx scripts/seed-local.ts",
     "lint": "tsc --noEmit",
-    "infra:up:app": "docker compose --env-file .env.local -f docker/docker-compose.local.yml --profile app up -d --build",
-    "infra:up:all": "docker compose --env-file .env.local -f docker/docker-compose.local.yml --profile app --profile oracle up -d --build"
+    "infra:up:app": "docker compose --env-file .env.local -f docker/docker-compose.local.yml --profile app up -d --build --remove-orphans",
+    "infra:up:all": "docker compose --env-file .env.local -f docker/docker-compose.local.yml --profile app --profile oracle up -d --build --remove-orphans"
   },
   "dependencies": {
     "dotenv": "latest",

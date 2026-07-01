@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { loadEnv } from '../../src/config/env';
-import { MsVoucherClient } from '../../src/api/msVoucherClient';
-import { WireMockClient } from '../../src/api/wiremockClient';
-import { pricingRule } from '../../src/data/pricingRules';
-import { backofficeSellVoucherPayload } from '../../src/data/payloadBuilders';
-import { expectJsonResponse } from '../../src/utils/assertions';
-import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWhenMutationNotAllowed } from '../../src/utils/guards';
+import { loadEnv } from '../../src/config/env.js';
+import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
+import { WireMockClient } from '../../src/api/wiremockClient.js';
+import { pricingRule, nextPricingRuleCode } from '../../src/data/pricingRules.js';
+import { backofficeSellVoucherPayload } from '../../src/data/payloadBuilders.js';
+import { expectJsonResponse } from '../../src/utils/assertions.js';
+import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 
@@ -39,7 +39,7 @@ test.describe('Fluxos E2E críticos | E2E-001..E2E-003 @e2e @mutating', () => {
     await test.step('E regra Gestão VG absoluta importada', async () => {
       await expectJsonResponse(await client.importGestaoVgPricingRules([
         pricingRule({
-          codigoRegra: Number(Date.now().toString().slice(-8)),
+          codigoRegra: nextPricingRuleCode(),
           cnpj: env.data.cnpjDistribuidor,
           produto: env.data.productCode,
           novoValor: 80

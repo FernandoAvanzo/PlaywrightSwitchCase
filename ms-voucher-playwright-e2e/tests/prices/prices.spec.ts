@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loadEnv } from '../../src/config/env';
-import { MsVoucherClient } from '../../src/api/msVoucherClient';
-import { pricingRule, percentageDiscountRule, percentageIncreaseRule } from '../../src/data/pricingRules';
-import { expectJsonResponse } from '../../src/utils/assertions';
-import { blockProdMutation, skipWhenMissing, skipWhenMutationNotAllowed } from '../../src/utils/guards';
+import { loadEnv } from '../../src/config/env.js';
+import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
+import { pricingRule, percentageDiscountRule, percentageIncreaseRule, nextPricingRuleCode } from '../../src/data/pricingRules.js';
+import { expectJsonResponse } from '../../src/utils/assertions.js';
+import { blockProdMutation, skipWhenMissing, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 
@@ -41,7 +41,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-008 @pricin
     const expectedPrice = 80;
     await expectJsonResponse(await client.importGestaoVgPricingRules([
       pricingRule({
-        codigoRegra: Number(Date.now().toString().slice(-8)),
+        codigoRegra: nextPricingRuleCode(),
         cnpj: env.data.cnpjDistribuidor,
         produto: env.data.productCode,
         novoValor: expectedPrice
@@ -62,7 +62,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-008 @pricin
     const client = new MsVoucherClient(request, env);
     await expectJsonResponse(await client.importGestaoVgPricingRules([
       percentageDiscountRule({
-        codigoRegra: Number(Date.now().toString().slice(-8)),
+        codigoRegra: nextPricingRuleCode(),
         cnpj: env.data.cnpjDistribuidor,
         produto: env.data.productCode,
         decrescimo: 10
@@ -83,7 +83,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-008 @pricin
     const client = new MsVoucherClient(request, env);
     await expectJsonResponse(await client.importGestaoVgPricingRules([
       percentageIncreaseRule({
-        codigoRegra: Number(Date.now().toString().slice(-8)),
+        codigoRegra: nextPricingRuleCode(),
         cnpj: env.data.cnpjDistribuidor,
         produto: env.data.productCode,
         acrescimo: 15
@@ -104,7 +104,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-008 @pricin
     const client = new MsVoucherClient(request, env);
     await expectJsonResponse(await client.importGestaoVgPricingRules([
       pricingRule({
-        codigoRegra: Number(Date.now().toString().slice(-8)),
+        codigoRegra: nextPricingRuleCode(),
         cnpj: env.data.cnpjDistribuidor,
         produto: env.data.productCode,
         statusRegra: 'I',

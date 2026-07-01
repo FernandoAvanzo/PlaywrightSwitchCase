@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { SuiteEnv } from '../config/env';
+import { SuiteEnv } from '../config/env.js';
 
 export function skipWhenMutationNotAllowed(env: SuiteEnv, reason = 'Teste mutante bloqueado para este ambiente.') {
   test.skip(!env.allowMutation, reason);

@@ -1,4 +1,4 @@
-import { SuiteEnv } from '../config/env';
+import { SuiteEnv } from '../config/env.js';
 
 export function backofficeSellVoucherPayload(env: SuiteEnv) {
   return {

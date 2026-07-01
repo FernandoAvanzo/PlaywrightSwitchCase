@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { loadEnv } from '../../src/config/env';
-import { MsVoucherClient } from '../../src/api/msVoucherClient';
-import { expectJsonResponse, expectNoSetupTechnicalFields } from '../../src/utils/assertions';
-import { blockProdMutation, skipWhenMutationNotAllowed } from '../../src/utils/guards';
+import { loadEnv } from '../../src/config/env.js';
+import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
+import { expectJsonResponse, expectNoSetupTechnicalFields } from '../../src/utils/assertions.js';
+import { blockProdMutation, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 

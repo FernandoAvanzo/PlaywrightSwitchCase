@@ -1,5 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
-import { SuiteEnv } from '../config/env';
+import { SuiteEnv } from '../config/env.js';
 
 export class MsVoucherClient {
   constructor(
@@ -15,37 +15,41 @@ export class MsVoucherClient {
     };
   }
 
+  private url(path: string) {
+    return `${this.env.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+  }
+
   getSetup() {
-    return this.request.get('/backoffice/vouchers/setup');
+    return this.request.get(this.url('backoffice/vouchers/setup'));
   }
 
   updateSetup(payload: Record<string, unknown>) {
-    return this.request.put('/backoffice/vouchers/setup', { data: payload });
+    return this.request.put(this.url('backoffice/vouchers/setup'), { data: payload });
   }
 
   importGestaoVgPricingRules(payload: unknown) {
-    return this.request.post('/backoffice/vouchers/pricing-rules/gestao-vg', { data: payload });
+    return this.request.post(this.url('backoffice/vouchers/pricing-rules/gestao-vg'), { data: payload });
   }
 
   getPrices(params: Record<string, string>) {
-    return this.request.get('/prices', {
+    return this.request.get(this.url('prices'), {
       params,
       headers: this.headers()
     });
   }
 
   sellVoucherBackoffice(payload: unknown) {
-    return this.request.post('/backoffice/vouchers', {
+    return this.request.post(this.url('backoffice/vouchers'), {
       data: payload,
       headers: this.headers()
     });
   }
 
   changeVoucherStatus(payload: unknown) {
-    return this.request.post('/backoffice/vouchers/change-status', { data: payload });
+    return this.request.post(this.url('backoffice/vouchers/change-status'), { data: payload });
   }
 
   confirmSell(payload: unknown) {
-    return this.request.post('/backoffice/vouchers/confirm-sell', { data: payload });
+    return this.request.post(this.url('backoffice/vouchers/confirm-sell'), { data: payload });
   }
 }

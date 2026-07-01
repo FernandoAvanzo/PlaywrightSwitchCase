@@ -1,15 +1,16 @@
+name: ${COMPOSE_PROJECT_NAME:-ms-voucher-playwright-local}
+
 services:
   mysql:
     image: mysql:8.4
-    container_name: ms-voucher-mysql
-    command: --default-authentication-plugin=mysql_native_password --sql-mode=""
+    command: ["--mysql-native-password=ON", "--lower-case-table-names=1", "--max_allowed_packet=100000000", "--character-set-server=latin1", "--collation-server=latin1_swedish_ci", "--sql-mode="]
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ms_voucher
       MYSQL_USER: ms_voucher
       MYSQL_PASSWORD: ms_voucher
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro
@@ -21,9 +22,8 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: ms-voucher-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "PING"]
       interval: 10s
@@ -31,15 +31,14 @@ services:
       retries: 20
 
   localstack:
-    image: localstack/localstack:latest
-    container_name: ms-voucher-localstack
+    image: localstack/localstack:3
     environment:
       SERVICES: sqs,s3
       AWS_DEFAULT_REGION: sa-east-1
-      EDGE_PORT: 4566
+      GATEWAY_LISTEN: 0.0.0.0:4566
       DEBUG: "0"
     ports:
-      - "4566:4566"
+      - "${LOCALSTACK_PORT:-4566}:4566"
     volumes:
       - ./localstack/init:/etc/localstack/init/ready.d:ro
       - localstack-data:/var/lib/localstack
@@ -51,42 +50,39 @@ services:
 
   ms-notification-wiremock:
     image: wiremock/wiremock:latest
-    container_name: ms-notification-wiremock
     command: ["--global-response-templating", "--verbose"]
     ports:
-      - "18081:8080"
+      - "${NOTIFICATION_WIREMOCK_PORT:-18081}:8080"
     volumes:
       - ./wiremock/ms-notification:/home/wiremock:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/__admin/mappings >/dev/null"]
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/__admin/mappings >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 20
 
   soa-wiremock:
     image: wiremock/wiremock:latest
-    container_name: ms-voucher-soa-wiremock
     command: ["--global-response-templating", "--verbose"]
     ports:
-      - "18082:8080"
+      - "${SOA_WIREMOCK_PORT:-18082}:8080"
     volumes:
       - ./wiremock/soa:/home/wiremock:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/__admin/mappings >/dev/null"]
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/__admin/mappings >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 20
 
   oracle:
     image: gvenzl/oracle-free:23-slim
-    container_name: ms-voucher-oracle
     profiles: ["oracle"]
     environment:
       ORACLE_PASSWORD: oracle
       APP_USER: voucher
       APP_USER_PASSWORD: voucher
     ports:
-      - "1521:1521"
+      - "${ORACLE_PORT:-1521}:1521"
     volumes:
       - oracle-data:/opt/oracle/oradata
       - ./oracle/init:/container-entrypoint-initdb.d:ro
@@ -97,23 +93,28 @@ services:
       retries: 30
 
   ms-voucher:
-    container_name: ms-voucher-app
     profiles: ["app"]
     build:
-      context: ${MS_VOUCHER_PROJECT_DIR:-../../ms-voucher}
+      context: ${MS_VOUCHER_PROJECT_DIR:-../../../ms-voucher}
       dockerfile: ${MS_VOUCHER_DOCKERFILE:-Dockerfile}
     env_file:
       - ./env/ms-voucher.local.env
+    volumes:
+      - ./ms-voucher-migrations:/opt/ms-voucher-local-migrations:ro
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ms_voucher?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo
-      SPRING_DATASOURCE_USERNAME: ms_voucher
-      SPRING_DATASOURCE_PASSWORD: ms_voucher
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATASOURCE_PRIMARY_URL: jdbc:mysql://mysql:3306/ms_voucher?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo
+      SPRING_DATASOURCE_PRIMARY_USERNAME: ms_voucher
+      SPRING_DATASOURCE_PRIMARY_PASSWORD: ms_voucher
+      SPRING_DATASOURCE_PRIMARY_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: "6379"
+      SPRING_REDIS_IS_STAND_ALONE: "true"
       AWS_ENDPOINT_URL: http://localstack:4566
       AWS_REGION: sa-east-1
-      MS_NOTIFICATION_ENDPOINT: http://ms-notification-wiremock:8080/notification/v1
-      SOA_ENDPOINT: http://soa-wiremock:8080/soa
+      NOTIFICATION_ENDPOINT: http://ms-notification-wiremock:8080/notification/v1
+      TRANSACTION_INTEGRATIONS_SOAP_ENDPOINT: http://soa-wiremock:8080/soa
+      EVENT_LISTENERS_ENABLED: "false"
+      MANAGEMENT_HEALTH_DB_ENABLED: "false"
       SERVER_PORT: "8001"
       SERVER_SERVLET_CONTEXT_PATH: /voucher/v1
     depends_on:
@@ -128,9 +129,9 @@ services:
       soa-wiremock:
         condition: service_healthy
     ports:
-      - "8001:8001"
+      - "${MS_VOUCHER_PORT:-8001}:8001"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8001/voucher/v1/actuator/health || curl -sf http://localhost:8001/actuator/health"]
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8001/voucher/v1/actuator/health >/dev/null 2>&1 || wget -q -O- http://localhost:8001/actuator/health >/dev/null 2>&1"]
       interval: 15s
       timeout: 5s
       retries: 40

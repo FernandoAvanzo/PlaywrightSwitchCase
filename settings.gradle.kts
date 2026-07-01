@@ -8,3 +8,4 @@ plugins {
 }
 rootProject.name = "PlaywrightTestCase"
 include("ms-notification-playwright-e2e")
+include("ms-voucher-playwright-e2e")

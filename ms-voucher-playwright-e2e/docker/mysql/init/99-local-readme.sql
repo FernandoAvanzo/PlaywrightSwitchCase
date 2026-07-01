@@ -1,0 +1,2 @@
+-- As tabelas de domínio devem ser criadas pelas migrations Flyway do ms-voucher.
+-- Use scripts adicionais neste diretório somente para massa descartável local.

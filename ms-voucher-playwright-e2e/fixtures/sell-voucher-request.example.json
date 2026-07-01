@@ -1,0 +1,11 @@
+{
+  "quantity": 1,
+  "productCode": "0110035",
+  "consumer": {
+    "phone": {
+      "ddd": "11",
+      "number": "999999999"
+    }
+  },
+  "mustSendSms": true
+}

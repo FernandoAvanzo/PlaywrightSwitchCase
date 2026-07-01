@@ -1,0 +1,3 @@
+-- Oracle local opcional para fluxos que ainda exigem datasource Oracle.
+-- A massa mínima depende das queries reais do ms-voucher; mantenha este arquivo
+-- apenas como ponto de extensão para dados descartáveis de consulta por localização.

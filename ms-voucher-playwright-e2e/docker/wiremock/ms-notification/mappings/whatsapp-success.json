@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/notification/v1/whatsapp"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": "whatsapp-{{randomValue length=8 type='ALPHANUMERIC'}}",
+      "status": "SENT",
+      "channel": "WHATSAPP"
+    }
+  }
+}

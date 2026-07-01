@@ -1,0 +1,35 @@
+{
+  "name": "ms-voucher-playwright-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright API E2E/BDD suite for ms-voucher with local Docker Compose infrastructure.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "TEST_ENV=local playwright test --project=api-local",
+    "test:hml": "TEST_ENV=hml playwright test --project=api-hml",
+    "test:prod": "TEST_ENV=prod playwright test --project=api-prod --grep @smoke",
+    "test:setup": "playwright test tests/setup",
+    "test:pricing": "playwright test tests/pricing",
+    "test:notification": "playwright test tests/notification",
+    "report": "playwright show-report",
+    "infra:up": "docker compose --env-file .env.local -f docker/docker-compose.local.yml up -d --build",
+    "infra:down": "docker compose --env-file .env.local -f docker/docker-compose.local.yml down -v",
+    "infra:logs": "docker compose --env-file .env.local -f docker/docker-compose.local.yml logs -f ms-voucher ms-notification-wiremock soa-wiremock",
+    "doctor:env": "tsx scripts/doctor-env.ts",
+    "seed:local": "tsx scripts/seed-local.ts",
+    "lint": "tsc --noEmit",
+    "infra:up:app": "docker compose --env-file .env.local -f docker/docker-compose.local.yml --profile app up -d --build",
+    "infra:up:all": "docker compose --env-file .env.local -f docker/docker-compose.local.yml --profile app --profile oracle up -d --build"
+  },
+  "dependencies": {
+    "dotenv": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

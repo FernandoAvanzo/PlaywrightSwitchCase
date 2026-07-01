@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "ANY",
+    "urlPathPattern": "/(soa|ebs|soap).*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/xml; charset=UTF-8"
+    },
+    "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"><soapenv:Body><success>true</success></soapenv:Body></soapenv:Envelope>"
+  }
+}

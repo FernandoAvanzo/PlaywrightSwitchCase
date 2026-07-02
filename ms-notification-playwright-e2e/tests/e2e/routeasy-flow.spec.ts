@@ -19,7 +19,7 @@ test.describe('E2E - Routeasy', () => {
    * - O cenário garante que o fluxo E2E mínimo de recebimento do webhook, preparação
    *   da mensagem e disparo para o provedor esteja funcional em ambiente local.
    */
-  test('@e2e @local @local-only E2E-004 - webhook dispara SMS de acompanhamento', async ({ apiClient, mockInfra }) => {
+  test('@e2e @local @local-only E2E-005 - webhook dispara SMS de acompanhamento', async ({ apiClient, mockInfra }) => {
     await mockInfra.stubShortenerSuccess();
     await mockInfra.stubSmsSuccess();
 

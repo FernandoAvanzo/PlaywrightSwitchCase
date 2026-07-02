@@ -17,7 +17,7 @@ test.describe('E2E - Notificações persistidas', () => {
    * - A atualização de status bem-sucedida deve retornar HTTP 204, indicando execução sem corpo de resposta.
    * - O fluxo completo deve garantir que o ciclo de vida básico da notificação persistida funcione corretamente.
    */
-  test('@e2e @local @local-only E2E-005 - criação, leitura e atualização', async ({ apiClient }) => {
+  test('@e2e @local @local-only E2E-006 - criação, leitura e atualização', async ({ apiClient }) => {
     const ownerId = `usuario-e2e-${Date.now()}`;
 
     const create = await apiClient.createNotification(notificationPayload({ ownerId }));

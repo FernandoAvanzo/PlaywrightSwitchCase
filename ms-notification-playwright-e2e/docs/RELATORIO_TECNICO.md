@@ -12,7 +12,7 @@ A suíte foi estruturada para permitir execução em três ambientes:
 
 ## 2. Base usada para desenho da solução
 
-A suíte foi derivada dos cenários BDD e E2E do relatório de testes fornecido, incluindo CT-001 a CT-030 e E2E-001 a E2E-005.
+A suíte foi derivada dos cenários BDD e E2E do relatório de testes fornecido, incluindo CT-001 a CT-030 e E2E-001 a E2E-006.
 
 Também foram considerados os artefatos do projeto `ms-notification` localizados na pasta de origem:
 
@@ -20,7 +20,7 @@ Também foram considerados os artefatos do projeto `ms-notification` localizados
 - configurações `application.yml`, `application-dev.yml` e `application-hml.yml`;
 - controllers de `SMS`, `WhatsApp`, `VoucherAdhoc`, `Routeasy` e notificações de aplicativo;
 - request DTOs correspondentes;
-- clientes externos para SMS, WhatsApp/Infobip, encurtador de URL e SQS;
+- clientes externos para SMS, WhatsApp/BLiP, encurtador de URL e SQS;
 - migração SQL inicial.
 
 ## 3. Estrutura gerada
@@ -88,7 +88,7 @@ O ambiente local inclui:
 
 - **MySQL 8.4** para persistência de notificações;
 - **LocalStack** para simular SQS;
-- **WireMock** para simular provedores SMS, WhatsApp/Infobip e encurtador;
+- **WireMock** para simular provedores SMS, WhatsApp/BLiP e encurtador;
 - **ms-notification** construído a partir do código local informado por `MS_NOTIFICATION_SOURCE_DIR`;
 - **Playwright runner opcional** pelo profile `test`.
 
@@ -100,8 +100,8 @@ Os testes configuram o WireMock dinamicamente usando a API Admin:
 
 - sucesso SMS;
 - falha SMS;
-- sucesso WhatsApp;
-- falha WhatsApp;
+- sucesso WhatsApp via BLiP (`/commands` e `/messages`);
+- falha WhatsApp via BLiP;
 - sucesso/falha no encurtador.
 
 Isso permite que cada cenário controle o comportamento externo necessário.
@@ -136,8 +136,10 @@ Os testes possuem cliente SQS para purgar e consultar mensagens quando a execuç
 
 ### 5.3 WhatsApp
 
-- CT-007 — envio por mensagem livre.
-- CT-008 — envio por template.
+- CT-007 — payload com `message` aceito e outbound por template BLiP default.
+- CT-008 — envio por template BLiP com parâmetros ordenados.
+- BLIP-001 — fallback de destino para `identity` quando não houver `alternativeAccount`.
+- BLIP-002 — lookup sem destino não chama `/messages`.
 - CT-009 — rejeição sem conteúdo/template.
 - CT-010 — rejeição por telefone inválido.
 - CT-011 — erro transitório para retry.
@@ -150,6 +152,8 @@ Os testes possuem cliente SQS para purgar e consultar mensagens quando a execuç
 - CT-015 — falha em ambos os canais.
 - CT-016 — canais default.
 - CT-017 — template-only com fallback SMS.
+- BLIP-003 — falha transitória BLiP não aciona SMS imediato.
+- BLIP-004 — lookup sem destino aciona SMS fallback sem envio de template.
 - CT-018 — `voucherId` obrigatório.
 - CT-019 — primaryChannel inválido.
 - CT-020 — fallbackChannel inválido.

@@ -3,6 +3,11 @@ export const phones = {
   invalid: '123'
 };
 
+export const blipAccounts = {
+  alternativeAccount: '5511988881234@wa.gw.msging.net',
+  identity: 'identity-11988881234@wa.gw.msging.net'
+};
+
 export function smsPayload(overrides: Record<string, unknown> = {}) {
   return {
     transactionId: `trx-sms-${Date.now()}`,
@@ -63,6 +68,19 @@ export function voucherAdhocPayload(overrides: Record<string, unknown> = {}) {
     },
     ...overrides
   };
+}
+
+export function voucherAdhocTemplateOnlyPayload(overrides: Record<string, unknown> = {}) {
+  return voucherAdhocPayload({
+    message: undefined,
+    templateName: 'vale_gas_codigo_venda',
+    templateLanguage: 'pt_BR',
+    templateVariables: {
+      voucherCode: '778899',
+      '1': '778899'
+    },
+    ...overrides
+  });
 }
 
 export function routeasyPayload(overrides: Record<string, unknown> = {}) {

@@ -1,55 +1,143 @@
 import { test, expect } from '../src/fixtures/api';
 import { env } from '../src/config/environment';
-import { whatsappPayload, whatsappTemplatePayload, phones } from '../src/data/payloads';
+import { blipAccounts, whatsappPayload, whatsappTemplatePayload, phones } from '../src/data/payloads';
 import { expectStatus } from '../src/utils/response';
+import {
+  headerValues,
+  requestJson,
+  type LoggedRequest,
+  type MockInfraClient
+} from '../src/clients/mock-infra-client';
 
-test.describe('Envio de WhatsApp', () => {
-  /**
-   * Valida o envio de uma notificação de WhatsApp utilizando mensagem livre.
-   *
-   * Regras de negócio cobertas:
-   * - Uma requisição válida de envio de WhatsApp com mensagem livre deve ser aceita pela API.
-   * - O serviço deve retornar HTTP 202, indicando que a solicitação foi recebida para processamento assíncrono.
-   * - A integração externa responsável pelo envio do WhatsApp deve ser acionada ao menos uma vez.
-   * - O fluxo local deve permitir simular sucesso da infraestrutura externa para validar o comportamento esperado da aplicação.
-   */
-  test('@local @local-only CT-007 - enviar WhatsApp com mensagem livre', async ({ apiClient, mockInfra }) => {
-    await mockInfra.stubWhatsappSuccess();
+type BlipCommandBody = {
+  to?: string;
+  method?: string;
+  uri?: string;
+};
+
+type BlipMessageBody = {
+  to?: string;
+  type?: string;
+  content?: {
+    type?: string;
+    template?: {
+      namespace?: string;
+      name?: string;
+      language?: {
+        code?: string;
+        policy?: string;
+      };
+      components?: Array<{
+        type?: string;
+        parameters?: Array<{
+          type?: string;
+          text?: string;
+        }>;
+      }>;
+    };
+  };
+};
+
+async function waitForRequestCount(mockInfra: MockInfraClient, urlPattern: string, expected: number): Promise<void> {
+  await expect.poll(async () => mockInfra.countRequests(urlPattern), { timeout: 15_000 }).toBe(expected);
+}
+
+async function waitForAtLeastOneRequest(mockInfra: MockInfraClient, urlPattern: string): Promise<void> {
+  await expect.poll(async () => mockInfra.countRequests(urlPattern), { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+}
+
+function expectBlipAuthorization(request: LoggedRequest): void {
+  const authorization = headerValues(request, 'Authorization');
+
+  expect(authorization).toHaveLength(1);
+  expect(authorization[0]).toMatch(/^Key .+/);
+  expect(authorization[0]).not.toMatch(/^Bearer /);
+  expect(headerValues(request, 'X-Account-Id')).toEqual([]);
+}
+
+test.describe('Envio de WhatsApp via BLiP', () => {
+  test('@local @local-only CT-007 - enviar WhatsApp com payload message usando template BLiP default', async ({ apiClient, mockInfra }) => {
+    await mockInfra.stubBlipSuccessWithAlternativeAccount();
 
     const response = await apiClient.sendWhatsapp(whatsappPayload({ transactionId: 'trx-whatsapp-playwright-001' }));
 
     await expectStatus(response, 202);
-    await expect.poll(() => mockInfra.countRequests('.*(whatsapp|infobip).*')).toBeGreaterThanOrEqual(1);
+    await waitForRequestCount(mockInfra, '/commands', 1);
+    await waitForRequestCount(mockInfra, '/messages', 1);
+
+    const commandRequest = (await mockInfra.findRequests('/commands'))[0];
+    const messageRequest = (await mockInfra.findRequests('/messages'))[0];
+    const commandBody = requestJson<BlipCommandBody>(commandRequest);
+    const messageBody = requestJson<BlipMessageBody>(messageRequest);
+
+    expectBlipAuthorization(commandRequest);
+    expectBlipAuthorization(messageRequest);
+    expect(commandBody.to).toBe('postmaster@wa.gw.msging.net');
+    expect(commandBody.method).toBe('get');
+    expect(commandBody.uri).toBe('lime://wa.gw.msging.net/accounts/+5511988881234');
+    expect(messageBody.to).toBe(blipAccounts.alternativeAccount);
+    expect(messageBody.type).toBe('application/json');
+    expect(messageBody.content?.type).toBe('template');
+    expect(messageBody.content?.template?.name).toBe('vale_gas_codigo_venda');
   });
 
-  /**
-   * Valida o envio de uma notificação de WhatsApp baseada em template.
-   *
-   * Regras de negócio cobertas:
-   * - Uma requisição válida contendo dados de template deve ser aceita pela API.
-   * - O serviço deve retornar HTTP 202 para indicar que o envio foi recebido e será processado de forma assíncrona.
-   * - O canal WhatsApp deve permitir envio por template como alternativa ao envio por mensagem livre.
-   * - O fluxo local deve permitir simular sucesso da infraestrutura externa para validar a aceitação da solicitação.
-   */
-  test('@local @local-only CT-008 - enviar WhatsApp usando template', async ({ apiClient, mockInfra }) => {
-    await mockInfra.stubWhatsappSuccess();
+  test('@local @local-only CT-008 - enviar WhatsApp usando template BLiP com parâmetros ordenados', async ({ apiClient, mockInfra }) => {
+    await mockInfra.stubBlipSuccessWithAlternativeAccount();
 
     const response = await apiClient.sendWhatsapp(whatsappTemplatePayload({
-      transactionId: 'trx-whatsapp-template-playwright-001'
+      transactionId: 'trx-whatsapp-template-playwright-001',
+      templateVariables: {
+        '2': 'second',
+        '1': 'first'
+      }
     }));
 
     await expectStatus(response, 202);
+    await waitForRequestCount(mockInfra, '/messages', 1);
+
+    const messageRequest = (await mockInfra.findRequests('/messages'))[0];
+    const messageBody = requestJson<BlipMessageBody>(messageRequest);
+    const template = messageBody.content?.template;
+    const parameters = template?.components?.[0]?.parameters?.map((parameter) => parameter.text);
+
+    expect(messageBody.content?.type).toBe('template');
+    expect(template?.namespace).toBeTruthy();
+    expect(template?.name).toBe('vale_gas_codigo_venda');
+    expect(template?.language?.code).toBe('pt_BR');
+    expect(template?.language?.policy).toBe('deterministic');
+    expect(template?.components?.[0]?.type).toBe('body');
+    expect(parameters).toEqual(['first', 'second']);
   });
 
-  /**
-   * Valida a rejeição de uma requisição de WhatsApp sem conteúdo de mensagem.
-   *
-   * Regras de negócio cobertas:
-   * - Uma notificação de WhatsApp deve possuir uma mensagem livre ou um template informado.
-   * - Requisições sem mensagem e sem template são consideradas inválidas.
-   * - A API deve retornar HTTP 400 quando os dados obrigatórios para compor o conteúdo da notificação não forem enviados.
-   * - O contrato da API deve impedir o aceite de solicitações que não possuem conteúdo suficiente para envio ao destinatário.
-   */
+  test('@local @local-only BLIP-001 - usar identity quando BLiP não retornar alternativeAccount', async ({ apiClient, mockInfra }) => {
+    await mockInfra.stubBlipSuccessWithIdentity(blipAccounts.identity);
+
+    const response = await apiClient.sendWhatsapp(whatsappTemplatePayload({
+      transactionId: 'trx-whatsapp-identity-destination-001'
+    }));
+
+    await expectStatus(response, 202);
+    await waitForRequestCount(mockInfra, '/messages', 1);
+
+    const messageRequest = (await mockInfra.findRequests('/messages'))[0];
+    const messageBody = requestJson<BlipMessageBody>(messageRequest);
+
+    expect(messageBody.to).toBe(blipAccounts.identity);
+  });
+
+  test('@local @local-only BLIP-002 - lookup sem destino não envia template', async ({ apiClient, mockInfra }) => {
+    await mockInfra.stubBlipLookupWithoutDestination();
+    await mockInfra.stubBlipMessageSuccess();
+
+    const response = await apiClient.sendWhatsapp(whatsappTemplatePayload({
+      transactionId: 'trx-whatsapp-destination-missing-001'
+    }));
+
+    await expectStatus(response, 202);
+    await waitForRequestCount(mockInfra, '/commands', 1);
+    await waitForRequestCount(mockInfra, '/messages', 0);
+  });
+
   test('@contract CT-009 - rejeitar WhatsApp sem mensagem e sem template', async ({ apiClient }) => {
     const response = await apiClient.sendWhatsapp({
       transactionId: 'trx-whatsapp-no-content-001',
@@ -60,16 +148,6 @@ test.describe('Envio de WhatsApp', () => {
     await expectStatus(response, 400);
   });
 
-
-  /**
-   * Valida a rejeição de uma requisição de WhatsApp com telefone inválido.
-   *
-   * Regras de negócio cobertas:
-   * - O número de telefone do destinatário deve respeitar o formato esperado para envio de WhatsApp.
-   * - Requisições com telefone inválido não devem ser aceitas para processamento.
-   * - A API deve retornar HTTP 400 quando o campo de telefone não atender às regras de validação.
-   * - O contrato da API deve proteger o fluxo de envio contra dados de destinatário inconsistentes.
-   */
   test('@contract CT-010 - rejeitar WhatsApp com telefone inválido', async ({ apiClient }) => {
     const response = await apiClient.sendWhatsapp(whatsappPayload({
       transactionId: 'trx-whatsapp-invalid-phone-001',
@@ -79,41 +157,29 @@ test.describe('Envio de WhatsApp', () => {
     await expectStatus(response, 400);
   });
 
-  /**
-   * Valida o comportamento do fluxo de contingência para erro transitório no envio de WhatsApp.
-   *
-   * Regras de negócio cobertas:
-   * - Quando a integração externa retorna erro transitório, como HTTP 500, a solicitação inicial ainda deve ser aceita pela API.
-   * - O serviço deve retornar HTTP 202, pois o processamento do envio ocorre de forma assíncrona.
-   * - Falhas temporárias no provedor externo devem direcionar a mensagem para o fluxo de retry.
-   * - O mecanismo de fila de retry deve estar disponível para permitir nova tentativa de processamento da notificação.
-   */
-  test('@local @local-only CT-011 - enviar WhatsApp para retry em erro transitório', async ({ apiClient, mockInfra, sqs }) => {
-    await mockInfra.stubWhatsappFailure(500);
+  test('@local @local-only CT-011 - erro BLiP transitório agenda retry', async ({ apiClient, mockInfra, sqs }) => {
+    await mockInfra.stubBlipLookupWithAlternativeAccount();
+    await mockInfra.stubBlipMessageFailure(503);
 
     const response = await apiClient.sendWhatsapp(whatsappPayload({ transactionId: 'trx-whatsapp-retry-001' }));
 
     await expectStatus(response, 202);
-    const messages = await sqs.receive(env.queues.whatsappRetry);
-    expect(messages.length).toBeGreaterThanOrEqual(0);
+    await waitForAtLeastOneRequest(mockInfra, '/commands');
+    await waitForAtLeastOneRequest(mockInfra, '/messages');
+    await expect.poll(async () => (await sqs.receive(env.queues.whatsappRetry)).length, { timeout: 20_000 })
+      .toBeGreaterThan(0);
   });
 
-  /**
-   * Valida o direcionamento de uma notificação de WhatsApp para hospital em caso de erro funcional.
-   *
-   * Regras de negócio cobertas:
-   * - Quando a integração externa retorna erro funcional, como HTTP 400, a solicitação inicial deve continuar sendo aceita pela API.
-   * - O serviço deve retornar HTTP 202, indicando que a requisição foi recebida para tratamento assíncrono.
-   * - Erros funcionais do provedor externo não devem seguir o mesmo fluxo de retentativa de falhas transitórias.
-   * - Mensagens com falha funcional devem ser direcionadas para a fila hospital para análise ou tratamento posterior.
-   */
-  test('@local @local-only CT-012 - enviar WhatsApp para hospital em erro funcional', async ({ apiClient, mockInfra, sqs }) => {
-    await mockInfra.stubWhatsappFailure(400);
+  test('@local @local-only CT-012 - erro BLiP funcional envia para hospital', async ({ apiClient, mockInfra, sqs }) => {
+    await mockInfra.stubBlipLookupWithAlternativeAccount();
+    await mockInfra.stubBlipMessageFailure(400);
 
     const response = await apiClient.sendWhatsapp(whatsappPayload({ transactionId: 'trx-whatsapp-hospital-001' }));
 
     await expectStatus(response, 202);
-    const messages = await sqs.receive(env.queues.whatsappHospital);
-    expect(messages.length).toBeGreaterThanOrEqual(0);
+    await waitForAtLeastOneRequest(mockInfra, '/commands');
+    await waitForAtLeastOneRequest(mockInfra, '/messages');
+    await expect.poll(async () => (await sqs.receive(env.queues.whatsappHospital)).length, { timeout: 20_000 })
+      .toBeGreaterThan(0);
   });
 });

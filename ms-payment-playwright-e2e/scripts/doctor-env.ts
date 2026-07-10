@@ -1,17 +1,38 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { loadEnvironment } from '../src/config/environment';
+
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = error.cause as { code?: string; message?: string } | undefined;
+    return [cause?.code, cause?.message ?? error.message].filter(Boolean).join(' - ');
+  }
+  return String(error);
+}
+
 async function check(name: string, url: string) {
   try {
     const response = await fetch(url);
     console.log(`${response.ok ? 'OK' : 'FAIL'} ${name}: ${response.status} ${url}`);
     if (!response.ok) process.exitCode = 1;
   } catch (error) {
-    console.error(`FAIL ${name}: ${url}`, error);
+    console.error(`FAIL ${name}: ${url} (${describeError(error)})`);
     process.exitCode = 1;
   }
 }
+
 async function main() {
   const env = loadEnvironment();
   console.log(`Ambiente: ${env.name}`);
+  if (env.name === 'local') {
+    const targetDir = process.env.MS_PAYMENT_PROJECT_DIR ?? '../ms-payment';
+    const resolvedTargetDir = path.resolve(process.cwd(), targetDir);
+    if (!fs.existsSync(resolvedTargetDir)) {
+      console.error(`FAIL ms-payment source dir: ${resolvedTargetDir} does not exist.`);
+      console.error('Hint: clone ms-payment there or set MS_PAYMENT_PROJECT_DIR in .env.local.');
+      process.exitCode = 1;
+    }
+  }
   await check('ms-payment', `${env.baseUrl}/actuator/health`);
   if (env.name === 'local') {
     await check('WireMock', `${env.wireMockUrl}/__admin/mappings`);

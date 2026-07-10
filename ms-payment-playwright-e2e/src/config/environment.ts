@@ -8,7 +8,7 @@ const candidates = [`.env.${testEnv}`, testEnv === 'local' ? '.env.local' : '', 
 for (const file of candidates) {
   const fullPath = path.resolve(process.cwd(), file);
   if (fs.existsSync(fullPath)) {
-    dotenv.config({ path: fullPath, override: false });
+    dotenv.config({ path: fullPath, override: false, quiet: true });
     break;
   }
 }

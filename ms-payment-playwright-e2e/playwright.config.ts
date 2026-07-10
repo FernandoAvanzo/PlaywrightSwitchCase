@@ -17,7 +17,7 @@ export default defineConfig({
     ['junit', { outputFile: 'test-results/junit.xml' }]
   ],
   use: {
-    baseURL: env.baseUrl,
+    baseURL: `${env.baseUrl}/`,
     extraHTTPHeaders: {
       'Accept-Language': 'pt-BR',
       'Content-Type': 'application/json'

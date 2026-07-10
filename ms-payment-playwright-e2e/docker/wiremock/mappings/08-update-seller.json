@@ -1,0 +1,1 @@
+{"request":{"method":"PATCH","urlPathPattern":"/v1/sellers/.*"},"response":{"status":200,"headers":{"Content-Type":"application/json"},"jsonBody":{"id":"seller-001","merchantId":"merchant-local","status":"active","providers":[]}},"priority":10}

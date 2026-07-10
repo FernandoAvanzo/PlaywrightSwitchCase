@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { MsPaymentClient } from '../../src/clients/ms-payment.client';
+import { WireMockClient } from '../../src/clients/wiremock.client';
 import { creditPayment } from '../../src/fixtures/payment.factory';
 
 test('@P0 @local @security resposta pública não expõe token ou IDs internos', async ({ request }) => {
+  await new WireMockClient(request).reset();
   const response = await new MsPaymentClient(request).createPayment(creditPayment());
   expect([200, 201, 202]).toContain(response.status());
   const text = await response.text();

@@ -1,6 +1,6 @@
 import { APIRequestContext, expect } from '@playwright/test';
 import { loadEnvironment } from '../config/environment';
-import { CreatePaymentPayload, PaymentResponse } from '../types/payment';
+import { CreatePaymentPayload, PaymentResponse, UpsertSplitReceiverPayload } from '../types/payment';
 
 const env = loadEnvironment();
 export class MsPaymentClient {
@@ -8,6 +8,9 @@ export class MsPaymentClient {
   async health() { return this.request.get('actuator/health', { headers: env.authHeaders }); }
   async createPayment(payload: CreatePaymentPayload) {
     return this.request.post('payments', { data: payload, headers: env.authHeaders });
+  }
+  async upsertSplitReceiver(payload: UpsertSplitReceiverPayload) {
+    return this.request.put('split-receivers', { data: payload, headers: env.authHeaders });
   }
   async getPayment(id: string) {
     return this.request.get(`payments/${id}`, { headers: env.authHeaders });

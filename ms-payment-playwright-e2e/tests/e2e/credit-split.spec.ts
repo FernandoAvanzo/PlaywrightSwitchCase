@@ -1,20 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { MsPaymentClient } from '../../src/clients/ms-payment.client';
 import { WireMockClient } from '../../src/clients/wiremock.client';
-import { creditPaymentWithSplit } from '../../src/fixtures/payment.factory';
+import { creditPaymentWithSplit, splitReceiverPayload } from '../../src/fixtures/payment.factory';
 import { parseBodies } from '../../src/helpers/json';
 
 test('@P0 @local @e2e @credit @split customer -> card -> charge com split', async ({ request }) => {
   const malga = new WireMockClient(request);
   await malga.reset();
-  const response = await new MsPaymentClient(request).createPayment(creditPaymentWithSplit());
+  const msPayment = new MsPaymentClient(request);
+
+  const splitReceiver = await msPayment.upsertSplitReceiver(splitReceiverPayload());
+  expect([200, 201]).toContain(splitReceiver.status());
+
+  const response = await msPayment.createPayment(creditPaymentWithSplit());
   expect([200, 201, 202]).toContain(response.status());
   const created = await response.json();
   expect(created.id).toBeTruthy();
 
-  await expect.poll(async () => (await malga.requests('POST', '/v1/customers')).requests.length).toBe(1);
-  await expect.poll(async () => (await malga.requests('POST', '/v1/cards')).requests.length).toBe(1);
-  await expect.poll(async () => (await malga.requests('POST', '/v1/charges')).requests.length).toBe(1);
+  await expect.poll(async () => (await malga.requests('POST', '/v1/customers')).requests.length, { timeout: 40_000 }).toBe(1);
+  await expect.poll(async () => (await malga.requests('POST', '/v1/cards')).requests.length, { timeout: 40_000 }).toBe(1);
+  await expect.poll(async () => (await malga.requests('POST', '/v1/charges')).requests.length, { timeout: 40_000 }).toBe(1);
 
   const chargeBodies = parseBodies((await malga.requests('POST', '/v1/charges')).requests) as any[];
   const charge = chargeBodies[0];

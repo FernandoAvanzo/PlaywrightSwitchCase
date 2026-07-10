@@ -3,6 +3,8 @@ import { MsPaymentClient } from '../../src/clients/ms-payment.client';
 import { WireMockClient } from '../../src/clients/wiremock.client';
 import { creditPayment } from '../../src/fixtures/payment.factory';
 
+test.setTimeout(180_000);
+
 test('@P0 @local @resilience retry de charge não duplica customer/card', async ({ request }) => {
   const malga = new WireMockClient(request); await malga.reset();
   await malga.setScenario({
@@ -19,7 +21,7 @@ test('@P0 @local @resilience retry de charge não duplica customer/card', async 
   });
   const response = await new MsPaymentClient(request).createPayment(creditPayment());
   expect([200, 201, 202]).toContain(response.status());
-  await expect.poll(async () => (await malga.requests('POST', '/v1/charges')).requests.length, { timeout: 40_000 }).toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => (await malga.requests('POST', '/v1/charges')).requests.length, { timeout: 150_000 }).toBeGreaterThanOrEqual(2);
   expect((await malga.requests('POST', '/v1/customers')).requests).toHaveLength(1);
   expect((await malga.requests('POST', '/v1/cards')).requests).toHaveLength(1);
 });

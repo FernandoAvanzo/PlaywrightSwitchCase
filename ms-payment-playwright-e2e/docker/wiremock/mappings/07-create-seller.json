@@ -1,0 +1,1 @@
+{"request":{"method":"POST","urlPath":"/v1/sellers"},"response":{"status":201,"headers":{"Content-Type":"application/json"},"jsonBody":{"id":"seller-001","merchantId":"merchant-local","status":"active","providers":[]}},"priority":10}

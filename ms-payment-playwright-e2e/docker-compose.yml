@@ -1,0 +1,91 @@
+services:
+  mysql:
+    image: mysql:8.4
+    ports: ["${MYSQL_PORT:-3307}:3306"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-payment}
+      MYSQL_USER: ${MYSQL_USER:-payment}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-payment}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql:/docker-entrypoint-initdb.d:ro
+
+  localstack:
+    image: localstack/localstack:3.8
+    ports: ["4566:4566"]
+    environment:
+      SERVICES: sqs,ssm
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      DEBUG: 0
+    volumes:
+      - ./docker/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  wiremock:
+    image: wiremock/wiremock:3.13.1
+    ports: ["8089:8080"]
+    command: ["--global-response-templating", "--verbose"]
+    volumes:
+      - ./docker/wiremock:/home/wiremock
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/__admin/mappings"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  webhook-mock:
+    image: mendhak/http-https-echo:35
+    ports: ["8090:8080"]
+    environment:
+      HTTP_PORT: 8080
+
+  ms-payment:
+    profiles: ["app"]
+    build:
+      context: ${MS_PAYMENT_PROJECT_DIR:-../ms-payment}
+      dockerfile: Dockerfile
+    ports: ["8001:8001"]
+    depends_on:
+      mysql: { condition: service_healthy }
+      localstack: { condition: service_healthy }
+      wiremock: { condition: service_healthy }
+    environment:
+      SERVER_PORT: 8001
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-payment}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-payment}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-payment}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_FLYWAY_ENABLED: "true"
+      APP_AWS_REGION: ${AWS_REGION:-us-east-1}
+      APP_AWS_SQS_ENDPOINT: http://localstack:4566
+      APP_AWS_SQS_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:-test}
+      APP_AWS_SQS_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      APP_AWS_SQS_MAIN_QUEUE: payment-events.fifo
+      APP_AWS_SQS_RECONCILIATION_QUEUE: payment-reconciliation.fifo
+      APP_AWS_SQS_START_RECONCILIATION_QUEUE: payment-start-reconciliation.fifo
+      APP_AWS_SSM_ENDPOINT: http://localstack:4566
+      APP_AWS_SSM_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:-test}
+      APP_AWS_SSM_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      APP_CONFIGURATION_MALGA_API_KEY_PARAMETER_NAME: ${MALGA_API_KEY_PARAMETER:-/ms-payment/local/malga/api-key}
+      APP_CONFIGURATION_MALGA_CLIENT_ID_PARAMETER_NAME: ${MALGA_CLIENT_ID_PARAMETER:-/ms-payment/local/malga/client-id}
+      APP_ORCHESTRATORS_MALGA_BASE_URL: http://wiremock:8080
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SPRING_PROFILES_ACTIVE: local
+
+volumes:
+  mysql-data:
+  localstack-data:

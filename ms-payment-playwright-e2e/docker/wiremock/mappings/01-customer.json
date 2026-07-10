@@ -1,0 +1,1 @@
+{"request":{"method":"POST","urlPath":"/v1/customers"},"response":{"status":201,"headers":{"Content-Type":"application/json"},"jsonBody":{"id":"customer-local-001","name":"Cliente Playwright"}},"priority":10}

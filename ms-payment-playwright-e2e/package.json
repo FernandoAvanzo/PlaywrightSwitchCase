@@ -1,0 +1,35 @@
+{
+  "name": "ms-payment-playwright-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Testes API BDD/E2E do ms-payment com Playwright e infraestrutura local mockada.",
+  "scripts": {
+    "clean": "rimraf playwright-report test-results",
+    "typecheck": "tsc --noEmit",
+    "doctor:env": "tsx scripts/doctor-env.ts",
+    "infra:up": "docker compose --env-file .env.local up -d mysql localstack wiremock webhook-mock",
+    "infra:up:app": "docker compose --env-file .env.local --profile app up -d --build",
+    "infra:down": "docker compose --env-file .env.local --profile app down -v --remove-orphans",
+    "infra:logs": "docker compose --env-file .env.local --profile app logs -f",
+    "test": "playwright test",
+    "test:local": "cross-env TEST_ENV=local playwright test --grep-invert @external",
+    "test:hml": "cross-env TEST_ENV=hml playwright test --grep @hml",
+    "test:prod": "cross-env TEST_ENV=prod playwright test --grep @prod-safe",
+    "test:smoke": "playwright test tests/smoke",
+    "test:contract": "playwright test tests/contract",
+    "test:e2e": "playwright test tests/e2e",
+    "test:resilience": "playwright test tests/resilience",
+    "test:security": "playwright test tests/security",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.0.10",
+    "cross-env": "^7.0.3",
+    "dotenv": "^17.2.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "zod": "^3.25.76"
+  }
+}

@@ -1,0 +1,1 @@
+{"request":{"method":"GET","urlPathPattern":"/v1/cards/.*"},"response":{"status":200,"headers":{"Content-Type":"application/json"},"jsonBody":{"id":"card-local-001","brand":"Visa","last4":"9339","maskedNumber":"**** 9339"}}}

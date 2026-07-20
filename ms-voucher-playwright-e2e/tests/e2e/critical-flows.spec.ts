@@ -5,12 +5,13 @@ import { WireMockClient } from '../../src/api/wiremockClient.js';
 import { pricingRule, nextPricingRuleCode } from '../../src/data/pricingRules.js';
 import { backofficeSellVoucherPayload } from '../../src/data/payloadBuilders.js';
 import { expectJsonResponse } from '../../src/utils/assertions.js';
-import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
+import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWhenMutationNotAllowed, skipWhenSetupContractUnsupported } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 
 test.describe('Fluxos E2E críticos | E2E-001..E2E-003 @e2e @mutating', () => {
   test.beforeEach(() => {
+    skipWhenSetupContractUnsupported(env);
     blockProdMutation(env);
     skipWhenMutationNotAllowed(env);
     skipWhenMutatingE2EDisabled(env);

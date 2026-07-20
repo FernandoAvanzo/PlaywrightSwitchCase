@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { loadEnv } from './src/config/env.js';
 
-const currentEnv = (process.env.TEST_ENV ?? 'local') as 'local' | 'hml' | 'prod';
+const currentEnv = (process.env.TEST_ENV ?? 'local') as 'local' | 'local-hml' | 'hml' | 'prod';
 const env = loadEnv(currentEnv);
 
 const commonUse = {
@@ -40,6 +40,12 @@ export default defineConfig({
       testMatch: /.*\.spec\.ts/,
       use: commonUse,
       metadata: { environment: 'local' }
+    },
+    {
+      name: 'api-local-hml',
+      testMatch: /.*\.spec\.ts/,
+      use: commonUse,
+      metadata: { environment: 'local-hml', remoteDependencies: 'hml', readOnlyByDefault: true }
     },
     {
       name: 'api-hml',

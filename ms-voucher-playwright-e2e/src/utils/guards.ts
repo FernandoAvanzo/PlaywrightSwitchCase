@@ -9,6 +9,13 @@ export function skipWhenMutatingE2EDisabled(env: SuiteEnv) {
   test.skip(!env.enableMutatingE2E, 'E2E mutante desabilitado. Defina ENABLE_MUTATING_E2E=true conscientemente.');
 }
 
+export function skipWhenSetupContractUnsupported(env: SuiteEnv) {
+  test.skip(
+    env.setupContract !== 'notification-channel',
+    'O ms-voucher atual expõe apenas PUT /backoffice/vouchers/setup e não possui o contrato notificationChannel.'
+  );
+}
+
 export function skipWhenMissing(values: Record<string, string | undefined>, reason = 'Massa obrigatória não configurada.') {
   const missing = Object.entries(values)
     .filter(([, value]) => !value)

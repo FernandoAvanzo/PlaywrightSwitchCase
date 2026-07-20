@@ -4,6 +4,7 @@ Esta matriz foi derivada do relatório técnico de referência anexado.
 
 | Grupo | Casos cobertos automaticamente | Localização |
 |---|---|---|
+| Saúde | HEALTH-001 | `tests/health/health.spec.ts` |
 | Setup | SETUP-001 a SETUP-006 | `tests/setup/setup.spec.ts` |
 | Notificação | NOTIF-001, NOTIF-002, NOTIF-003, NOTIF-004, NOTIF-007 | `tests/notification/notification-fallback.spec.ts` |
 | Importação Gestão VG | PRIC-001 a PRIC-009 | `tests/pricing/import-pricing-rules.spec.ts` |
@@ -15,6 +16,7 @@ Esta matriz foi derivada do relatório técnico de referência anexado.
 
 | Caso | Dependência |
 |---|---|
+| SETUP-001 a SETUP-006 | Exigem `SETUP_CONTRACT=notification-channel`; a branch `release` expõe somente o contrato legado de setup. |
 | SETUP-007 | Banco descartável com estado intermediário entre migrations V75 e V76. |
 | NOTIF-005, NOTIF-006, NOTIF-008, NOTIF-009, NOTIF-010 | Massa de venda/cancelamento/reenvio e endpoint exato de reenvio. |
 | PRICE-005, PRICE-007, PRICE-008 | Massa com regras concorrentes, distribuidor por localização/Oracle e controle de data/hora. |

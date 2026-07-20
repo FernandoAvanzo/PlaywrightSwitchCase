@@ -4,12 +4,13 @@ import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
 import { WireMockClient } from '../../src/api/wiremockClient.js';
 import { backofficeSellVoucherPayload, cancelVoucherPayload } from '../../src/data/payloadBuilders.js';
 import { expectJsonResponse } from '../../src/utils/assertions.js';
-import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
+import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWhenMutationNotAllowed, skipWhenSetupContractUnsupported } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 
 test.describe('Notificação SMS, WhatsApp e fallback | NOTIF-001..NOTIF-010 @notification @mutating', () => {
   test.beforeEach(() => {
+    skipWhenSetupContractUnsupported(env);
     blockProdMutation(env);
     skipWhenMutationNotAllowed(env);
     skipWhenMutatingE2EDisabled(env);

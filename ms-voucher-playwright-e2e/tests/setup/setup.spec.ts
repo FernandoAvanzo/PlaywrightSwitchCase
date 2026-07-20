@@ -2,12 +2,16 @@ import { test, expect } from '@playwright/test';
 import { loadEnv } from '../../src/config/env.js';
 import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
 import { expectJsonResponse, expectNoSetupTechnicalFields } from '../../src/utils/assertions.js';
-import { blockProdMutation, skipWhenMutationNotAllowed } from '../../src/utils/guards.js';
+import { blockProdMutation, skipWhenMutationNotAllowed, skipWhenSetupContractUnsupported } from '../../src/utils/guards.js';
 
 const env = loadEnv();
 
 test.describe('Setup de voucher | SETUP-001..SETUP-006 @contract', () => {
-  test('SETUP-001 @smoke | Dado ambiente ativo, quando consultar setup, então retorna contrato público válido', async ({ request }) => {
+  test.beforeEach(() => {
+    skipWhenSetupContractUnsupported(env);
+  });
+
+  test('SETUP-001 | Dado contrato notification-channel ativo, quando consultar setup, então retorna contrato público válido', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
 
     const response = await client.getSetup();

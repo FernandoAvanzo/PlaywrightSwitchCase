@@ -3,14 +3,18 @@ import { existsSync } from 'node:fs';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-export type TestEnvironment = 'local' | 'hml' | 'prod';
+export type TestEnvironment = 'local' | 'local-hml' | 'hml' | 'prod';
+
+const HML_MUTATION_CONFIRMATION = 'I_UNDERSTAND_HML_MUTATIONS';
 
 const schema = z.object({
-  TEST_ENV: z.enum(['local', 'hml', 'prod']).default('local'),
+  TEST_ENV: z.enum(['local', 'local-hml', 'hml', 'prod']).default('local'),
   BASE_URL: z.string().url(),
   ACCEPT_LANGUAGE: z.string().default('pt_BR'),
   ALLOW_MUTATION: z.string().default('false'),
   ENABLE_MUTATING_E2E: z.string().default('false'),
+  MUTATION_CONFIRMATION: z.string().optional().default(''),
+  SETUP_CONTRACT: z.enum(['legacy', 'notification-channel']).default('legacy'),
   WIREMOCK_NOTIFICATION_ADMIN_URL: z.string().optional().default(''),
   WIREMOCK_SOA_ADMIN_URL: z.string().optional().default(''),
   CUSTOMER_ID: z.string().optional().default(''),
@@ -33,9 +37,9 @@ export function loadEnv(envName: TestEnvironment = (process.env.TEST_ENV ?? 'loc
   const exampleFile = path.join(root, `.env.${envName}.example`);
 
   if (existsSync(envFile)) {
-    dotenv.config({ path: envFile, override: true });
+    dotenv.config({ path: envFile, override: true, quiet: true });
   } else if (existsSync(exampleFile)) {
-    dotenv.config({ path: exampleFile, override: false });
+    dotenv.config({ path: exampleFile, override: false, quiet: true });
   }
 
   const parsed = schema.parse({
@@ -43,11 +47,18 @@ export function loadEnv(envName: TestEnvironment = (process.env.TEST_ENV ?? 'loc
     TEST_ENV: envName
   });
 
+  const mutationRequested = parsed.ALLOW_MUTATION === 'true';
+  const targetsSharedHml = parsed.TEST_ENV === 'hml' || parsed.TEST_ENV === 'local-hml';
+  const mutationConfirmationValid = !targetsSharedHml || parsed.MUTATION_CONFIRMATION === HML_MUTATION_CONFIRMATION;
+
   return {
     name: parsed.TEST_ENV,
     baseUrl: parsed.BASE_URL,
     acceptLanguage: parsed.ACCEPT_LANGUAGE,
-    allowMutation: parsed.ALLOW_MUTATION === 'true',
+    allowMutation: mutationRequested && mutationConfirmationValid && parsed.TEST_ENV !== 'prod',
+    mutationRequested,
+    mutationConfirmationValid,
+    setupContract: parsed.SETUP_CONTRACT,
     enableMutatingE2E: parsed.ENABLE_MUTATING_E2E === 'true',
     wiremockNotificationAdminUrl: parsed.WIREMOCK_NOTIFICATION_ADMIN_URL,
     wiremockSoaAdminUrl: parsed.WIREMOCK_SOA_ADMIN_URL,

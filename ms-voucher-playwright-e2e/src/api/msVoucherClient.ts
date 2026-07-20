@@ -19,6 +19,10 @@ export class MsVoucherClient {
     return `${this.env.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
   }
 
+  getHealth() {
+    return this.request.get(this.url('actuator/health'));
+  }
+
   getSetup() {
     return this.request.get(this.url('backoffice/vouchers/setup'));
   }

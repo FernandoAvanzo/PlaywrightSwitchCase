@@ -14,6 +14,7 @@
     "test:setup": "playwright test tests/setup",
     "test:pricing": "playwright test tests/pricing",
     "test:notification": "playwright test tests/notification",
+    "test:batch": "playwright test tests/batch",
     "report": "playwright show-report",
     "infra:up": "docker compose --env-file .env.local -f docker/docker-compose.local.yml up -d --build --remove-orphans",
     "infra:down": "docker compose --env-file .env.local -f docker/docker-compose.local.yml down -v --remove-orphans",

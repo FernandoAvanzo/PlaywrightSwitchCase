@@ -144,6 +144,33 @@ As variáveis da suíte Playwright ficam em `.env.local`, `.env.hml` ou `.env.pr
 
 Use `npm run doctor:env` para validar se variáveis essenciais foram configuradas antes de executar testes mutantes.
 
+### Bloqueio assíncrono em lote (`422.007`/`422.062`)
+
+Os cenários em `tests/batch` cobrem validação do request, contrato inicial, polling por operação e itens, falta de estoque (`422.007`), coordenadas ausentes (`422.062`), Vale inexistente (`422.064`), sucesso, lote misto, localização, webhook e não exposição de campos internos.
+
+Antes de executar, copie os campos `BATCH_*` do arquivo `.env.<ambiente>.example` para o arquivo local e use Vales exclusivos da rodada. Os Vales de sucesso e do lote misto não devem ser reutilizados por outros testes. Os cenários mutantes exigem simultaneamente:
+
+```dotenv
+ALLOW_MUTATION=true
+ENABLE_MUTATING_E2E=true
+```
+
+Em `hml` e `local-hml`, também é obrigatória a confirmação já adotada pelo projeto:
+
+```dotenv
+MUTATION_CONFIRMATION=I_UNDERSTAND_HML_MUTATIONS
+```
+
+Execução focada:
+
+```bash
+npm run test:batch
+```
+
+Quando uma massa específica não estiver configurada, somente o caso dependente dela será marcado como ignorado. A suíte nunca cria ou inventa Vales em HML.
+
+Para o webhook local com o `ms-voucher` no Compose, use `BATCH_WEBHOOK_URL=http://ms-notification-wiremock:8080/voucher-batch-webhook`. Se a aplicação estiver em execução diretamente na máquina, use a porta publicada do mesmo WireMock, normalmente `http://127.0.0.1:18081/voucher-batch-webhook`.
+
 ## Postman HML
 
 - Importe `postman/ms-voucher-hml.postman_environment.json` para obter um template versionável sem segredos.

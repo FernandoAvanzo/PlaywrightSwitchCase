@@ -1,5 +1,6 @@
 import { APIRequestContext } from '@playwright/test';
 import { SuiteEnv } from '../config/env.js';
+import { BatchRequestOptions, VoucherBatchBlockPayload } from './voucherBatchOperations.js';
 
 export class MsVoucherClient {
   constructor(
@@ -17,6 +18,15 @@ export class MsVoucherClient {
 
   private url(path: string) {
     return `${this.env.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+  }
+
+  private languageHeaders(options: BatchRequestOptions = {}): Record<string, string> {
+    if (options.acceptLanguage === null) {
+      return {};
+    }
+    return {
+      'Accept-Language': options.acceptLanguage ?? this.env.acceptLanguage
+    };
   }
 
   getHealth() {
@@ -55,5 +65,18 @@ export class MsVoucherClient {
 
   confirmSell(payload: unknown) {
     return this.request.post(this.url('backoffice/vouchers/confirm-sell'), { data: payload });
+  }
+
+  createVoucherBatchBlock(payload: VoucherBatchBlockPayload | Record<string, unknown>, options: BatchRequestOptions = {}) {
+    return this.request.post(this.url('voucher-batch-operations/block'), {
+      data: payload,
+      headers: this.languageHeaders(options)
+    });
+  }
+
+  getVoucherBatchOperation(operationId: string, options: BatchRequestOptions = {}) {
+    return this.request.get(this.url(`voucher-batch-operations/${encodeURIComponent(operationId)}`), {
+      headers: this.languageHeaders(options)
+    });
   }
 }

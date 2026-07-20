@@ -4,6 +4,14 @@ type WireMockCountResponse = {
   count: number;
 };
 
+type WireMockRequestJournalResponse = {
+  requests: Array<{
+    request?: {
+      body?: string;
+    };
+  }>;
+};
+
 export class WireMockClient {
   private context?: APIRequestContext;
 
@@ -16,7 +24,6 @@ export class WireMockClient {
 
     if (!this.context) {
       this.context = await playwrightRequest.newContext({
-        baseURL: this.adminUrl,
         extraHTTPHeaders: { 'Content-Type': 'application/json' }
       });
     }
@@ -24,21 +31,25 @@ export class WireMockClient {
     return this.context;
   }
 
+  private url(path: string) {
+    return `${this.adminUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+  }
+
   async resetAllToDefaultMappings() {
     const api = await this.api();
-    const response = await api.post('/reset');
+    const response = await api.post(this.url('reset'));
     expect(response.ok(), await response.text()).toBeTruthy();
   }
 
   async resetRequests() {
     const api = await this.api();
-    const response = await api.post('/requests/reset');
+    const response = await api.post(this.url('requests/reset'));
     expect(response.ok(), await response.text()).toBeTruthy();
   }
 
   async setEndpointFailure(path: string, status = 500) {
     const api = await this.api();
-    await api.post('/mappings', {
+    await api.post(this.url('mappings'), {
       data: {
         priority: 1,
         request: { method: 'POST', urlPath: path },
@@ -53,7 +64,7 @@ export class WireMockClient {
 
   async countPostRequests(path: string) {
     const api = await this.api();
-    const response = await api.post('/requests/count', {
+    const response = await api.post(this.url('requests/count'), {
       data: {
         method: 'POST',
         urlPath: path
@@ -62,6 +73,21 @@ export class WireMockClient {
     expect(response.ok(), await response.text()).toBeTruthy();
     const body = (await response.json()) as WireMockCountResponse;
     return body.count;
+  }
+
+  async postRequestBodies(path: string) {
+    const api = await this.api();
+    const response = await api.post(this.url('requests/find'), {
+      data: {
+        method: 'POST',
+        urlPath: path
+      }
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    const body = (await response.json()) as WireMockRequestJournalResponse;
+    return body.requests
+      .map(entry => entry.request?.body)
+      .filter((requestBody): requestBody is string => typeof requestBody === 'string');
   }
 
   async dispose() {

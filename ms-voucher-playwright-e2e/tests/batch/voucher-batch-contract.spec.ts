@@ -125,3 +125,14 @@ test.describe('Contrato do bloqueio em lote | E2E-CONTRACT-001..003 @batch @cont
     }
   });
 });
+
+test.describe('Consulta de operação em lote | @batch @contract', () => {
+  test('E2E-CONTRACT-004 | Operação inexistente deve retornar 404 sem detalhes técnicos', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const response = await client.getVoucherBatchOperation('00000000-0000-0000-0000-000000000000');
+    const body = await response.text();
+
+    expect(response.status(), body).toBe(404);
+    expect(body).not.toMatch(/stack\s*trace|soapenv|messageCode|messageArguments|localeTag/i);
+  });
+});

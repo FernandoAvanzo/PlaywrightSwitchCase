@@ -17,6 +17,7 @@ import {
 import {
   expectInitialVoucherBatchOperation,
   expectPublicVoucherBatchContract,
+  expectVoucherBatchRepresentationInvariant,
   readVoucherBatchOperation,
   voucherBatchItem,
   waitForVoucherBatchCompletion
@@ -214,8 +215,7 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
       status: 'ERROR',
       message: `Voucher ${env.batch.voucherNotFound.toUpperCase()} was not found. Check the provided code.`
     });
-    expect(english.status).toBe(operation.status);
-    expect(english.items.map(item => item.voucherCode)).toEqual(operation.items.map(item => item.voucherCode));
+    expectVoucherBatchRepresentationInvariant(operation, english);
     expect((englishResponse.headers().vary ?? '').toLowerCase()).toContain('accept-language');
     expectPublicVoucherBatchContract(english);
   });

@@ -1,13 +1,18 @@
 {
   "request": {
-    "method": "ANY",
-    "urlPathPattern": "/(soa|ebs|soap).*"
+    "method": "POST",
+    "urlPath": "/soa",
+    "bodyPatterns": [
+      {
+        "matches": "(?s).*<(?:[A-Za-z_][\\w.-]*:)?BloquearRequest(?:\\s[^>]*)?>.*"
+      }
+    ]
   },
   "response": {
     "status": 200,
     "headers": {
       "Content-Type": "text/xml; charset=UTF-8"
     },
-    "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"><soapenv:Body><success>true</success></soapenv:Body></soapenv:Envelope>"
+    "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:evale=\"http://service.ultragaz.com.br/ebs/Evale/v5\" xmlns:canonical=\"http://canonico.ultragaz.com.br/ebs/v1\"><soapenv:Body><evale:BloquearResponse><canonical:nrSolicitacaoContact></canonical:nrSolicitacaoContact><canonical:resposta>1</canonical:resposta><canonical:descricaoResposta>Vale bloqueado com sucesso.</canonical:descricaoResposta></evale:BloquearResponse></soapenv:Body></soapenv:Envelope>"
   }
 }

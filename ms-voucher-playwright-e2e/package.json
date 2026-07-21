@@ -15,6 +15,7 @@
     "test:pricing": "playwright test tests/pricing",
     "test:notification": "playwright test tests/notification",
     "test:batch": "playwright test tests/batch",
+    "test:voucher-not-found": "playwright test tests/batch/voucher-not-found-boundaries.spec.ts",
     "report": "playwright show-report",
     "infra:up": "docker compose --env-file .env.local -f docker/docker-compose.local.yml up -d --build --remove-orphans",
     "infra:down": "docker compose --env-file .env.local -f docker/docker-compose.local.yml down -v --remove-orphans",

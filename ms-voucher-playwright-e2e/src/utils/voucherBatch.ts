@@ -81,7 +81,7 @@ export function expectInitialVoucherBatchOperation(
 export async function waitForVoucherBatchCompletion(
   client: MsVoucherClient,
   operationId: string,
-  options: { timeoutMs: number; intervalMs: number; acceptLanguage?: string }
+  options: { timeoutMs: number; intervalMs: number; acceptLanguage?: string | null }
 ) {
   let latest: VoucherBatchOperation | undefined;
 
@@ -111,4 +111,17 @@ export function voucherBatchItem(operation: VoucherBatchOperation, voucherCode: 
   const matches = operation.items.filter(item => item.voucherCode === voucherCode.toUpperCase());
   expect(matches, `Deve existir exatamente um item para o Vale ${voucherCode}.`).toHaveLength(1);
   return matches[0];
+}
+
+export function expectVoucherBatchRepresentationInvariant(
+  original: VoucherBatchOperation,
+  localized: VoucherBatchOperation
+) {
+  const withoutLocalizedMessages = (operation: VoucherBatchOperation) => ({
+    ...operation,
+    items: operation.items.map(({ message: _message, ...item }) => item)
+  });
+
+  expect(withoutLocalizedMessages(localized), 'A localização não deve alterar o estado persistido da operação.')
+    .toEqual(withoutLocalizedMessages(original));
 }

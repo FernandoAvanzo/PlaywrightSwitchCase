@@ -51,6 +51,10 @@ services:
   ms-notification-wiremock:
     image: wiremock/wiremock:latest
     command: ["--global-response-templating", "--verbose"]
+    networks:
+      default:
+        aliases:
+          - webhook.example.com
     ports:
       - "${NOTIFICATION_WIREMOCK_PORT:-18081}:8080"
     volumes:

@@ -56,9 +56,12 @@ export function loadEnv(envName: TestEnvironment = (process.env.TEST_ENV ?? 'loc
   const root = process.cwd();
   const envFile = path.join(root, `.env.${envName}`);
   const exampleFile = path.join(root, `.env.${envName}.example`);
+  const preferProcessEnv = process.env.PW_PROCESS_ENV_OVERRIDES === 'true';
 
   if (existsSync(envFile)) {
-    dotenv.config({ path: envFile, override: true, quiet: true });
+    // O arquivo do ambiente protege a suíte de variáveis genéricas da estação, como BASE_URL.
+    // CI e validações pontuais podem optar explicitamente por valores do processo.
+    dotenv.config({ path: envFile, override: !preferProcessEnv, quiet: true });
   } else if (existsSync(exampleFile)) {
     dotenv.config({ path: exampleFile, override: false, quiet: true });
   }

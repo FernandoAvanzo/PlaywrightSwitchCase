@@ -10,6 +10,7 @@ Projeto Playwright para validar a API `ms-voucher` com testes BDD/E2E automatiza
 - Stubs WireMock para `ms-notification` e SOA/EBS.
 - Relatório técnico em `docs/relatorio-tecnico-playwright-ms-voucher.md`.
 - Relatório de diagnóstico e correções locais em `docs/relatorio-tecnico-ajustes-execucao-local.md`.
+- Relatório da ampliação do caso `422.064` em `docs/relatorio-tecnico-vale-nao-localizado-422-064.md`.
 - Matriz BDD e rastreabilidade em `docs/matriz-bdd-e2e.md`.
 
 ## Pré-requisitos
@@ -165,11 +166,14 @@ Execução focada:
 
 ```bash
 npm run test:batch
+npm run test:voucher-not-found # fronteiras determinísticas do 422.064 no ambiente local
 ```
 
 Quando uma massa específica não estiver configurada, somente o caso dependente dela será marcado como ignorado. A suíte nunca cria ou inventa Vales em HML.
 
-Para o webhook local com o `ms-voucher` no Compose, use `BATCH_WEBHOOK_URL=http://ms-notification-wiremock:8080/voucher-batch-webhook`. Se a aplicação estiver em execução diretamente na máquina, use a porta publicada do mesmo WireMock, normalmente `http://127.0.0.1:18081/voucher-batch-webhook`.
+Para o webhook local com o `ms-voucher` no Compose, use `BATCH_WEBHOOK_URL=http://webhook.example.com:8080/voucher-batch-webhook`. O domínio reservado é apenas um alias interno da rede do Compose e é aceito pelo validador de URL da API. Se a aplicação estiver em execução diretamente na máquina, use a porta publicada do mesmo WireMock, normalmente `http://127.0.0.1:18081/voucher-batch-webhook`.
+
+Os casos `E2E-422064-STUB-001` a `006` não dependem de Vales preexistentes: no ambiente `local`, o teste registra respostas SOAP específicas por código no WireMock, valida a quantidade de chamadas ao legado e restaura os mappings ao final. Para uma execução pontual em CI ou no terminal na qual as variáveis do processo devam prevalecer sobre `.env.local`, habilite explicitamente `PW_PROCESS_ENV_OVERRIDES=true`.
 
 ## Postman HML
 

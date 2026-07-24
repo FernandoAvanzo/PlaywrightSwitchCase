@@ -1,5 +1,9 @@
 # Relatório Técnico — Projeto Playwright para `ms-notification`
 
+> Este documento registra a estrutura-base da suíte. A expansão do provider
+> Salesforce, as 29 novas automações e as evidências atuais estão documentadas em
+> `RELATORIO_TECNICO_SALESFORCE_WHATSAPP_E2E.md`.
+
 ## 1. Objetivo
 
 Este projeto implementa uma suíte automatizada de testes API/E2E para o microserviço `ms-notification`, cobrindo os cenários de SMS, WhatsApp, voucher adhoc com fallback, webhook Routeasy, notificações persistidas e validações de observabilidade.

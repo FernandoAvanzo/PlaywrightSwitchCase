@@ -17,7 +17,7 @@
     "report": "playwright show-report reports/html",
     "compose:up": "docker compose --env-file .env.local -f infra/docker-compose.local.yml up -d --build",
     "compose:down": "docker compose --env-file .env.local -f infra/docker-compose.local.yml down -v",
-    "compose:logs": "docker compose --env-file .env.local -f infra/docker-compose.local.yml logs -f ms-notification",
+    "compose:logs": "docker compose --env-file .env.local -f infra/docker-compose.local.yml logs -f ms-notification ms-notification-salesforce",
     "lint:env": "tsx scripts/validate-env.ts"
   },
   "devDependencies": {

@@ -2,7 +2,8 @@
 
 Projeto Playwright para testes API/E2E do microserviço `ms-notification`, com suporte a três modos de execução:
 
-- `local`: sobe MySQL, LocalStack/SQS, WireMock e a aplicação alvo via Docker Compose.
+- `local`: sobe MySQL, LocalStack/SQS, WireMock e duas instâncias da aplicação alvo
+  via Docker Compose: Salesforce como provider principal e BLiP como rollback.
 - `hml`: executa contra ambiente de homologação configurado em `.env.hml`.
 - `prod`: executa apenas smoke/contract tests não destrutivos contra `.env.prod`.
 
@@ -31,6 +32,16 @@ npm run test:local
 
 O script sobe a infraestrutura local e executa testes marcados com `@smoke`, `@contract`, `@local` e `@e2e`.
 
+No ambiente local:
+
+- `http://localhost:18001/notification/v1` executa o provider `BLIP`;
+- `http://localhost:18002/notification/v1` executa o provider `SALESFORCE`;
+- `http://localhost:18089` expõe a API administrativa HTTP do WireMock;
+- `https://localhost:18443` expõe os endpoints OAuth/Apex simulados.
+
+O certificado HTTPS e o truststore são sintéticos e gerados em volume Docker. Nenhum
+segredo ou certificado de ambiente real é necessário.
+
 ## Execução HML
 
 ```bash
@@ -58,6 +69,12 @@ A execução PROD usa apenas cenários não destrutivos, evitando envio real de 
 - `tests/04-routeasy.spec.ts`: webhook Routeasy.
 - `tests/05-app-notifications.spec.ts`: notificações persistidas.
 - `tests/06-observability.spec.ts`: logs e dados sensíveis.
+- `tests/07-salesforce-whatsapp.spec.ts`: contrato, compatibilidade, cache,
+  idempotência e segurança do Salesforce.
+- `tests/08-salesforce-resilience.spec.ts`: renovação OAuth e classificação entre
+  retry e hospital.
+- `tests/09-salesforce-voucher-adhoc.spec.ts`: Voucher adhoc via Salesforce e
+  contingência SMS.
 - `tests/e2e/*`: fluxos integrados ponta a ponta.
 
 ## Tags
@@ -66,3 +83,10 @@ A execução PROD usa apenas cenários não destrutivos, evitando envio real de 
 - `@contract`: valida payload inválido e contrato sem acionar provedores externos.
 - `@local-only`: depende de mocks locais.
 - `@e2e`: fluxo integrado com mocks locais.
+
+## Documentação
+
+- `docs/guia-testes-e2e-bdd-ms-notification-salesforce.md`: guia funcional e BDD.
+- `docs/MATRIZ_CENARIOS.md`: rastreabilidade dos cenários automatizados.
+- `docs/RELATORIO_TECNICO_SALESFORCE_WHATSAPP_E2E.md`: arquitetura, decisões e
+  evidências da implementação Salesforce.

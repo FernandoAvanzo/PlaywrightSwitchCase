@@ -28,12 +28,12 @@ export class SqsTestClient {
     return response.QueueUrl;
   }
 
-  async receive(queueName: string, maxMessages = 5): Promise<string[]> {
+  async receive(queueName: string, maxMessages = 5, waitTimeSeconds = 0): Promise<string[]> {
     const QueueUrl = await this.queueUrl(queueName);
     const response = await this.sqs().send(new ReceiveMessageCommand({
       QueueUrl,
       MaxNumberOfMessages: maxMessages,
-      WaitTimeSeconds: 2
+      WaitTimeSeconds: waitTimeSeconds
     }));
     return (response.Messages ?? []).map((m) => m.Body ?? '');
   }

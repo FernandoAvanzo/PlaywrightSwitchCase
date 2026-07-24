@@ -14,9 +14,15 @@ type StubOptions = {
   urlPath?: string;
   status: number;
   body?: unknown;
+  rawBody?: string;
   headers?: Record<string, string>;
   requestHeaders?: Record<string, HeaderPattern>;
   bodyPatterns?: unknown[];
+  priority?: number;
+  scenarioName?: string;
+  requiredScenarioState?: string;
+  newScenarioState?: string;
+  fixedDelayMilliseconds?: number;
 };
 
 export type LoggedRequest = {
@@ -95,6 +101,10 @@ export class MockInfraClient {
     const response = await api.post('/__admin/mappings', {
       data: {
         name: options.name,
+        ...(options.priority ? { priority: options.priority } : {}),
+        ...(options.scenarioName ? { scenarioName: options.scenarioName } : {}),
+        ...(options.requiredScenarioState ? { requiredScenarioState: options.requiredScenarioState } : {}),
+        ...(options.newScenarioState ? { newScenarioState: options.newScenarioState } : {}),
         request: {
           ...requestMatcher,
           ...(options.requestHeaders ? { headers: options.requestHeaders } : {}),
@@ -102,7 +112,12 @@ export class MockInfraClient {
         },
         response: {
           status: options.status,
-          jsonBody: options.body ?? { status: 'OK', providerMessageId: `mock-${Date.now()}` },
+          ...(options.rawBody !== undefined
+            ? { body: options.rawBody }
+            : { jsonBody: options.body ?? { status: 'OK', providerMessageId: `mock-${Date.now()}` } }),
+          ...(options.fixedDelayMilliseconds
+            ? { fixedDelayMilliseconds: options.fixedDelayMilliseconds }
+            : {}),
           headers: {
             'Content-Type': 'application/json',
             ...(options.headers ?? {})
@@ -204,6 +219,107 @@ export class MockInfraClient {
   async stubBlipSuccessWithIdentity(identity = 'identity-11988881234@wa.gw.msging.net'): Promise<void> {
     await this.stubBlipLookupWithIdentity(identity);
     await this.stubBlipMessageSuccess();
+  }
+
+  async stubSalesforceOAuthSuccess(
+    accessToken = 'salesforce-access-token-synthetic',
+    options: { fixedDelayMilliseconds?: number } = {}
+  ): Promise<void> {
+    await this.stubPost({
+      name: 'salesforce-oauth-success',
+      urlPath: '/services/oauth2/token',
+      status: 200,
+      body: {
+        access_token: accessToken,
+        instance_url: 'https://wiremock:8443',
+        token_type: 'Bearer',
+        expires_in: 1
+      },
+      requestHeaders: {
+        'Content-Type': { contains: 'application/x-www-form-urlencoded' }
+      },
+      bodyPatterns: [
+        { contains: 'grant_type=client_credentials' },
+        { contains: 'client_id=local-salesforce-client' },
+        { contains: 'client_secret=local-salesforce-secret' }
+      ],
+      fixedDelayMilliseconds: options.fixedDelayMilliseconds
+    });
+  }
+
+  async stubSalesforceAccepted(
+    flow: 'voucher' | 'appAuth' = 'voucher',
+    correlationId = `sf-correlation-${Date.now()}`,
+    message = 'Mensagem aceita para processamento'
+  ): Promise<void> {
+    await this.stubPost({
+      name: `salesforce-${flow}-accepted`,
+      urlPath: `/services/apexrest/messaging/${flow}`,
+      status: 202,
+      body: {
+        success: true,
+        correlationId,
+        message
+      },
+      requestHeaders: {
+        Authorization: { matches: '^Bearer .+' },
+        'Content-Type': { contains: 'application/json' }
+      }
+    });
+  }
+
+  async stubSalesforceFailure(
+    status: number,
+    options: {
+      flow?: 'voucher' | 'appAuth';
+      body?: unknown;
+      rawBody?: string;
+      fixedDelayMilliseconds?: number;
+    } = {}
+  ): Promise<void> {
+    const flow = options.flow ?? 'voucher';
+    await this.stubPost({
+      name: `salesforce-${flow}-failure-${status}`,
+      urlPath: `/services/apexrest/messaging/${flow}`,
+      status,
+      body: options.body ?? {
+        success: false,
+        message: `Salesforce mocked failure ${status}`,
+        errorMessage: `SALESFORCE_${status}`
+      },
+      rawBody: options.rawBody,
+      fixedDelayMilliseconds: options.fixedDelayMilliseconds
+    });
+  }
+
+  async stubSalesforceUnauthorizedThenAccepted(
+    flow: 'voucher' | 'appAuth' = 'voucher',
+    correlationId = `sf-correlation-refreshed-${Date.now()}`
+  ): Promise<void> {
+    const scenarioName = `salesforce-refresh-${flow}-${Date.now()}`;
+    await this.stubPost({
+      name: `salesforce-${flow}-first-unauthorized`,
+      urlPath: `/services/apexrest/messaging/${flow}`,
+      status: 401,
+      body: { success: false, errorMessage: 'Token expirado' },
+      scenarioName,
+      requiredScenarioState: 'Started',
+      newScenarioState: 'TOKEN_REFRESHED',
+      priority: 1
+    });
+    await this.stubPost({
+      name: `salesforce-${flow}-accepted-after-refresh`,
+      urlPath: `/services/apexrest/messaging/${flow}`,
+      status: 202,
+      body: {
+        success: true,
+        correlationId,
+        message: 'Mensagem aceita após renovação'
+      },
+      scenarioName,
+      requiredScenarioState: 'TOKEN_REFRESHED',
+      priority: 1
+    });
   }
 
   async stubSmsSuccess(): Promise<void> {

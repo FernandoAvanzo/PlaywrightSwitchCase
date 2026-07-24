@@ -41,22 +41,77 @@ services:
       timeout: 5s
       retries: 20
 
+  tls-certs:
+    image: eclipse-temurin:11-jdk-alpine
+    container_name: ms-notification-tls-certs
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ ! -f /certs/wiremock-keystore.p12 ]; then
+          keytool -genkeypair -noprompt \
+            -alias wiremock \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname "CN=wiremock, OU=E2E, O=Ultragaz, L=Sao Paulo, ST=SP, C=BR" \
+            -ext "SAN=dns:wiremock,dns:localhost,ip:127.0.0.1" \
+            -storetype PKCS12 \
+            -keystore /certs/wiremock-keystore.p12 \
+            -storepass changeit \
+            -keypass changeit
+          keytool -exportcert -noprompt \
+            -alias wiremock \
+            -keystore /certs/wiremock-keystore.p12 \
+            -storepass changeit \
+            -rfc \
+            -file /certs/wiremock.crt
+          chmod 0644 /certs/wiremock-keystore.p12 /certs/wiremock.crt
+        fi
+        if [ ! -f /certs/wiremock-truststore.jks ]; then
+          keytool -importcert -noprompt \
+            -alias wiremock \
+            -file /certs/wiremock.crt \
+            -storetype JKS \
+            -keystore /certs/wiremock-truststore.jks \
+            -storepass changeit
+          chmod 0644 /certs/wiremock-truststore.jks
+        fi
+    volumes:
+      - wiremock-tls:/certs
+
   wiremock:
     image: wiremock/wiremock:3.9.2
     container_name: ms-notification-wiremock
-    command: ["--verbose", "--global-response-templating"]
+    command:
+      - "--verbose"
+      - "--global-response-templating"
+      - "--https-port"
+      - "8443"
+      - "--https-keystore"
+      - "/certs/wiremock-keystore.p12"
+      - "--keystore-type"
+      - "PKCS12"
+      - "--keystore-password"
+      - "changeit"
+      - "--key-manager-password"
+      - "changeit"
     ports:
       - "18089:8080"
+      - "18443:8443"
+    depends_on:
+      tls-certs:
+        condition: service_completed_successfully
     volumes:
       - ./wiremock/mappings:/home/wiremock/mappings:ro
       - ./wiremock/__files:/home/wiremock/__files:ro
+      - wiremock-tls:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/__admin/health >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
 
-  ms-notification:
+  ms-notification: &ms-notification-base
     container_name: ms-notification-app
     build:
       context: ${MS_NOTIFICATION_SOURCE_DIR:-../ms-notification}
@@ -70,7 +125,9 @@ services:
         condition: service_healthy
       wiremock:
         condition: service_healthy
-    environment:
+    volumes:
+      - wiremock-tls:/certs:ro
+    environment: &ms-notification-environment
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       SERVER_PORT: ${MS_NOTIFICATION_CONTAINER_PORT:-8080}
       SERVER_SERVLET_CONTEXT_PATH: /notification/v1
@@ -178,6 +235,28 @@ services:
       timeout: 5s
       retries: 30
 
+  ms-notification-salesforce:
+    <<: *ms-notification-base
+    container_name: ms-notification-salesforce-app
+    ports:
+      - "${SALESFORCE_MS_NOTIFICATION_PORT:-18002}:${MS_NOTIFICATION_CONTAINER_PORT:-8080}"
+    environment:
+      <<: *ms-notification-environment
+      NOTIFICATION_WHATSAPP_PROVIDER: SALESFORCE
+      SALESFORCE_LOGIN_URL: https://wiremock:8443/services/oauth2/token
+      SALESFORCE_CLIENT_ID: local-salesforce-client
+      SALESFORCE_CLIENT_SECRET: local-salesforce-secret
+      SALESFORCE_APP_AUTH_PATH: /services/apexrest/messaging/appAuth
+      SALESFORCE_VOUCHER_PATH: /services/apexrest/messaging/voucher
+      SALESFORCE_TOKEN_CACHE_TTL_SECONDS: "1800"
+      SALESFORCE_TOKEN_REFRESH_SKEW_SECONDS: "60"
+      SALESFORCE_CONNECT_TIMEOUT_MILLIS: "500"
+      SALESFORCE_READ_TIMEOUT_MILLIS: "500"
+      JAVA_TOOL_OPTIONS: >-
+        -Djavax.net.ssl.trustStore=/certs/wiremock-truststore.jks
+        -Djavax.net.ssl.trustStorePassword=changeit
+        -Djavax.net.ssl.trustStoreType=JKS
+
   playwright:
     image: mcr.microsoft.com/playwright:v1.54.0-noble
     profiles: ["test"]
@@ -187,6 +266,7 @@ services:
     environment:
       TEST_ENV: local
       MS_NOTIFICATION_BASE_URL: http://ms-notification:${MS_NOTIFICATION_CONTAINER_PORT:-8080}/notification/v1
+      SALESFORCE_MS_NOTIFICATION_BASE_URL: http://ms-notification-salesforce:${MS_NOTIFICATION_CONTAINER_PORT:-8080}/notification/v1
       MOCK_BASE_URL: http://wiremock:8080
       AWS_ENDPOINT: http://localstack:4566
       AWS_REGION: ${AWS_REGION:-us-east-1}
@@ -196,8 +276,11 @@ services:
     depends_on:
       ms-notification:
         condition: service_healthy
+      ms-notification-salesforce:
+        condition: service_healthy
     command: ["bash", "-lc", "npm ci || npm install && npx playwright test --grep '@(smoke|contract|local|e2e)'"]
 
 volumes:
   mysql-data:
   localstack-data:
+  wiremock-tls:

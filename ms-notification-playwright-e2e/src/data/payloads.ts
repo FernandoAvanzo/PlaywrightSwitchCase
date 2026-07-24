@@ -35,6 +35,22 @@ export function whatsappPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+export function salesforceVoucherPayload(overrides: Record<string, unknown> = {}) {
+  return whatsappPayload({
+    message: 'VG123456',
+    flow: 'VOUCHER',
+    ...overrides
+  });
+}
+
+export function salesforceAppAuthPayload(overrides: Record<string, unknown> = {}) {
+  return whatsappPayload({
+    message: '482913',
+    flow: 'APP_AUTH',
+    ...overrides
+  });
+}
+
 export function whatsappTemplatePayload(overrides: Record<string, unknown> = {}) {
   return {
     transactionId: `trx-whatsapp-template-${Date.now()}`,

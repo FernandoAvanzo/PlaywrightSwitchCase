@@ -7,6 +7,7 @@ export type ExecutionEnvironment = 'local' | 'hml' | 'prod';
 export interface EnvironmentConfig {
   name: ExecutionEnvironment;
   baseURL: string;
+  salesforceBaseURL: string;
   mockBaseURL?: string;
   awsEndpoint?: string;
   awsRegion: string;
@@ -44,10 +45,15 @@ export function loadEnvironment(): EnvironmentConfig {
 
   const configuredBaseURL = requireEnv('MS_NOTIFICATION_BASE_URL');
   const baseURL = configuredBaseURL.endsWith('/') ? configuredBaseURL : `${configuredBaseURL}/`;
+  const configuredSalesforceBaseURL = process.env.SALESFORCE_MS_NOTIFICATION_BASE_URL ?? configuredBaseURL;
+  const salesforceBaseURL = configuredSalesforceBaseURL.endsWith('/')
+    ? configuredSalesforceBaseURL
+    : `${configuredSalesforceBaseURL}/`;
 
   return {
     name,
     baseURL,
+    salesforceBaseURL,
     mockBaseURL: process.env.MOCK_BASE_URL || undefined,
     awsEndpoint: process.env.AWS_ENDPOINT || undefined,
     awsRegion: process.env.AWS_REGION ?? 'us-east-1',

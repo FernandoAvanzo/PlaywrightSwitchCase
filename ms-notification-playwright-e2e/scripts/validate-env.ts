@@ -2,6 +2,7 @@ import { env } from '../src/config/environment';
 
 const requiredForAll = ['MS_NOTIFICATION_BASE_URL'];
 const requiredForLocal = [
+  'SALESFORCE_MS_NOTIFICATION_BASE_URL',
   'MOCK_BASE_URL',
   'AWS_ENDPOINT',
   'AWS_REGION',
@@ -18,4 +19,6 @@ if (missing.length > 0) {
   throw new Error(`Variáveis ausentes para ${env.name}: ${missing.join(', ')}`);
 }
 
-console.log(`Ambiente ${env.name} validado com baseURL=${env.baseURL}`);
+console.log(
+  `Ambiente ${env.name} validado com baseURL=${env.baseURL} e salesforceBaseURL=${env.salesforceBaseURL}`
+);

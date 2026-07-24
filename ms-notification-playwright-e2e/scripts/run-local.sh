@@ -13,6 +13,8 @@ docker compose --env-file .env.local -f infra/docker-compose.local.yml up -d --b
 
 echo "==> Aguardando health check da aplicação"
 bash scripts/wait-health.sh "${MS_NOTIFICATION_BASE_URL:-http://localhost:18001/notification/v1}/actuator/health"
+bash scripts/wait-health.sh \
+  "${SALESFORCE_MS_NOTIFICATION_BASE_URL:-http://localhost:18002/notification/v1}/actuator/health"
 
 echo "==> Executando suíte local Playwright"
 TEST_ENV=local npx playwright test --grep "@(smoke|contract|local|e2e)"

@@ -143,9 +143,6 @@ dmypy.json
 /.kotlin/*
 
 #Gradle Config
-!/gradle/wrapper/gradle-wrapper.properties
-/gradle/
-/gradle/*
 /.gradle/
 /.gradle/*
 /.build/

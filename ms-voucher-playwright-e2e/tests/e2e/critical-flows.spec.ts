@@ -26,6 +26,18 @@ test.describe('Fluxos E2E críticos | E2E-001..E2E-003 @e2e @mutating', () => {
     });
   });
 
+  /**
+   * Garante a continuidade da jornada crítica de venda com preço gerenciado e canais redundantes.
+   *
+   * Objetivo do teste: validar ponta a ponta a configuração `AMBOS`, a importação de uma regra
+   * absoluta da Gestão VG, a consulta de preço e a venda com contingência por SMS.
+   *
+   * Regras de negócio e cobertura:
+   * - A regra importada deve manter a consulta de preço disponível para o produto.
+   * - A venda deve ser concluída mesmo quando o endpoint de WhatsApp retorna falha.
+   * - O WhatsApp deve ser tentado primeiro e o SMS deve ser acionado como fallback.
+   * - O cenário cobre a integração entre setup, pricing, venda e notificação.
+   */
   test('E2E-001 | Setup AMBOS + pricing rule + venda com fallback SMS', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const wiremock = new WireMockClient(env.wiremockNotificationAdminUrl);
@@ -65,6 +77,17 @@ test.describe('Fluxos E2E críticos | E2E-001..E2E-003 @e2e @mutating', () => {
     });
   });
 
+  /**
+   * Preserva o comportamento legado de clientes configurados exclusivamente para SMS.
+   *
+   * Objetivo do teste: evitar regressão que introduza tentativa de WhatsApp em uma venda cujo
+   * setup determina o SMS como único canal de comunicação.
+   *
+   * Regras de negócio e cobertura:
+   * - A configuração `SMS` deve permitir a conclusão da venda.
+   * - O serviço de notificação por SMS deve ser acionado ao menos uma vez.
+   * - Nenhuma requisição deve ser enviada ao endpoint de WhatsApp.
+   */
   test('E2E-003 | Regressão SMS legado: setup SMS não deve chamar WhatsApp', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const wiremock = new WireMockClient(env.wiremockNotificationAdminUrl);

@@ -30,6 +30,17 @@ test.describe('Notificação SMS, WhatsApp e fallback | NOTIF-001..NOTIF-010 @no
     }
   });
 
+  /**
+   * Direciona a comunicação da venda exclusivamente para SMS quando esse é o canal contratado.
+   *
+   * Objetivo do teste: confirmar que a configuração do setup governa o roteamento da notificação
+   * e impede chamadas desnecessárias ao WhatsApp.
+   *
+   * Regras de negócio e cobertura:
+   * - Uma venda válida deve concluir com o setup `SMS`.
+   * - O endpoint `/sms` deve ser acionado ao menos uma vez.
+   * - O endpoint `/whatsapp` não pode receber requisições nesse modo.
+   */
   test('NOTIF-001 | Venda com setup SMS deve chamar /sms e não /whatsapp', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const wiremock = new WireMockClient(env.wiremockNotificationAdminUrl);
@@ -45,6 +56,17 @@ test.describe('Notificação SMS, WhatsApp e fallback | NOTIF-001..NOTIF-010 @no
     expect(await wiremock.countPostRequests('/notification/v1/whatsapp')).toBe(0);
   });
 
+  /**
+   * Direciona a comunicação da venda exclusivamente para WhatsApp quando esse é o canal contratado.
+   *
+   * Objetivo do teste: validar que o setup `WHATSAPP` produz uma única estratégia de entrega e
+   * não usa o SMS sem uma regra de contingência configurada.
+   *
+   * Regras de negócio e cobertura:
+   * - Uma venda válida deve concluir com a configuração de WhatsApp.
+   * - O endpoint `/whatsapp` deve ser acionado ao menos uma vez.
+   * - O endpoint `/sms` deve permanecer sem chamadas.
+   */
   test('NOTIF-002 | Venda com setup WHATSAPP deve chamar /whatsapp e não /sms', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const wiremock = new WireMockClient(env.wiremockNotificationAdminUrl);
@@ -60,6 +82,17 @@ test.describe('Notificação SMS, WhatsApp e fallback | NOTIF-001..NOTIF-010 @no
     expect(await wiremock.countPostRequests('/notification/v1/sms')).toBe(0);
   });
 
+  /**
+   * Evita comunicação duplicada quando o WhatsApp conclui com sucesso na estratégia de dois canais.
+   *
+   * Objetivo do teste: comprovar que `AMBOS` representa prioridade com contingência, e não envio
+   * simultâneo da mesma informação por WhatsApp e SMS.
+   *
+   * Regras de negócio e cobertura:
+   * - O WhatsApp deve ser o primeiro canal acionado para a venda.
+   * - Com sucesso no canal primário, nenhuma chamada de SMS deve ocorrer.
+   * - A venda deve permanecer bem-sucedida usando apenas uma comunicação.
+   */
   test('NOTIF-003 | AMBOS com WhatsApp sucesso não envia SMS duplicado', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const wiremock = new WireMockClient(env.wiremockNotificationAdminUrl);
@@ -75,6 +108,17 @@ test.describe('Notificação SMS, WhatsApp e fallback | NOTIF-001..NOTIF-010 @no
     expect(await wiremock.countPostRequests('/notification/v1/sms')).toBe(0);
   });
 
+  /**
+   * Mantém a comunicação da venda quando o canal prioritário está indisponível.
+   *
+   * Objetivo do teste: validar que o setup `AMBOS` aciona o SMS após uma falha do WhatsApp,
+   * permitindo que o cliente ainda receba as informações do Vale Gás.
+   *
+   * Regras de negócio e cobertura:
+   * - O WhatsApp deve ser tentado antes do fallback.
+   * - Uma falha HTTP 500 no canal primário deve provocar ao menos uma chamada de SMS.
+   * - A indisponibilidade da notificação principal não deve impedir a conclusão da venda.
+   */
   test('NOTIF-004 | AMBOS com falha no WhatsApp deve usar SMS fallback', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
     const wiremock = new WireMockClient(env.wiremockNotificationAdminUrl);
@@ -91,6 +135,17 @@ test.describe('Notificação SMS, WhatsApp e fallback | NOTIF-001..NOTIF-010 @no
     expect(await wiremock.countPostRequests('/notification/v1/sms')).toBeGreaterThanOrEqual(1);
   });
 
+  /**
+   * Aplica a preferência de WhatsApp também às comunicações de cancelamento de Vale.
+   *
+   * Objetivo do teste: confirmar que a alteração de status para cancelamento utiliza o canal
+   * configurado no setup, e não apenas os fluxos de venda.
+   *
+   * Regras de negócio e cobertura:
+   * - O cancelamento autenticado deve concluir com o setup `WHATSAPP`.
+   * - A operação deve acionar o endpoint `/whatsapp` ao menos uma vez.
+   * - O roteamento de canal deve ser consistente entre venda e mudança de status.
+   */
   test('NOTIF-007 | Cancelamento com WhatsApp usa /whatsapp', async ({ request }) => {
     skipWhenMissing({ AUTH_CODE: env.data.authCode });
 

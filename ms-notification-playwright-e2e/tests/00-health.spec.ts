@@ -1,15 +1,18 @@
 import { test, expect } from '../src/fixtures/api';
 import { expectStatus } from '../src/utils/response';
 
-/**
- * Valida que o serviço de notificações está inicializado e operacional.
- *
- * Regras de negócio cobertas:
- * - O endpoint de health check deve responder com HTTP 200 quando a aplicação estiver disponível.
- * - O corpo da resposta deve informar o status `UP`, indicando que o serviço está apto a receber requisições.
- * - Este teste funciona como verificação smoke para confirmar que a aplicação subiu corretamente antes da execução de cenários mais complexos.
- */
 test.describe('Health check e inicialização', () => {
+  /**
+   * Garante que o serviço de notificações esteja disponível para sustentar os fluxos de comunicação.
+   *
+   * Objetivo do teste: confirmar, em uma verificação smoke, que a aplicação iniciou corretamente
+   * e está apta a receber solicitações antes da execução dos cenários funcionais.
+   *
+   * Regras de negócio e cobertura:
+   * - O endpoint de saúde deve responder com HTTP 200 quando o serviço estiver operacional.
+   * - O contrato de disponibilidade deve informar o status `UP`.
+   * - Uma falha nesta verificação impede considerar os canais de notificação prontos para uso.
+   */
   test('@smoke CT-001 - serviço deve responder UP', async ({ apiClient }) => {
     const response = await apiClient.health();
 

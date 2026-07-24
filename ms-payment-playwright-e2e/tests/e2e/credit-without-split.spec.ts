@@ -4,6 +4,17 @@ import { WireMockClient } from '../../src/clients/wiremock.client';
 import { creditPayment } from '../../src/fixtures/payment.factory';
 import { parseBodies } from '../../src/helpers/json';
 
+/**
+ * Preserva a cobrança integral do estabelecimento quando o pagamento não possui recebedores de split.
+ *
+ * Objetivo do teste: confirmar que o fluxo de crédito convencional cria a cobrança sem incluir
+ * instruções de divisão financeira não solicitadas pelo consumidor da API.
+ *
+ * Regras de negócio e cobertura:
+ * - Um pagamento de crédito válido deve ser aceito e gerar uma cobrança no provedor.
+ * - A ausência de `split_receivers` na entrada deve resultar na ausência de `splitRules` na cobrança.
+ * - O teste cobre a transformação do contrato público para o payload externo sem split implícito.
+ */
 test('@P0 @local @e2e crédito sem split não envia splitRules', async ({ request }) => {
   const malga = new WireMockClient(request); await malga.reset();
   const response = await new MsPaymentClient(request).createPayment(creditPayment());

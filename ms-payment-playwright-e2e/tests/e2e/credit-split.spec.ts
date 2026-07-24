@@ -4,6 +4,18 @@ import { WireMockClient } from '../../src/clients/wiremock.client';
 import { creditPaymentWithSplit, splitReceiverPayload } from '../../src/fixtures/payment.factory';
 import { parseBodies } from '../../src/helpers/json';
 
+/**
+ * Garante a divisão financeira de uma venda de crédito entre o estabelecimento e o recebedor cadastrado.
+ *
+ * Objetivo do teste: validar ponta a ponta o cadastro do recebedor e a orquestração sequencial de
+ * cliente, cartão e cobrança, incluindo a regra de split enviada ao provedor.
+ *
+ * Regras de negócio e cobertura:
+ * - O recebedor do split deve ser criado ou atualizado antes da transação.
+ * - Uma venda válida deve criar exatamente um cliente, um cartão e uma cobrança.
+ * - A cobrança deve referenciar cliente e cartão persistidos, sem reutilizar o token bruto.
+ * - `splitRules` deve repassar 1.000 unidades ao vendedor configurado, sem responsabilidade ou taxa.
+ */
 test('@P0 @local @e2e @credit @split customer -> card -> charge com split', async ({ request }) => {
   const malga = new WireMockClient(request);
   await malga.reset();

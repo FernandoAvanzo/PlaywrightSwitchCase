@@ -13,6 +13,17 @@ test.describe('Mensagens funcionais PT-BR | MSG-001..MSG-008 @messages @mutating
     skipWhenMutatingE2EDisabled(env);
   });
 
+  /**
+   * Mantém a mensagem de erro FEPAS acionável quando o identificador efetivo não é localizado.
+   *
+   * Objetivo do teste: confirmar que a resposta funcional interpola o ID informado pelo usuário,
+   * em vez de expor um placeholder literal ou uma mensagem sem contexto.
+   *
+   * Regras de negócio e cobertura:
+   * - A tentativa de finalização sem um ID efetivo válido deve retornar HTTP 422.
+   * - O corpo deve conter exatamente o identificador usado na solicitação.
+   * - Nenhum marcador de interpolação pode permanecer visível no contrato público.
+   */
   test('MSG-008 | FEPAS sem id efetivo deve exibir o id informado e não placeholder literal', async ({ request }) => {
     skipWhenMissing({ FEPAS_EFFECTIVE_ID: env.data.fepasEffectiveId });
 
@@ -30,6 +41,17 @@ test.describe('Mensagens funcionais PT-BR | MSG-001..MSG-008 @messages @mutating
     expectNoLiteralPlaceholder(body);
   });
 
+  /**
+   * Comunica claramente o limite unitário de venda quando a operação é iniciada por código de barras.
+   *
+   * Objetivo do teste: validar que uma tentativa de vender mais de um Vale por barcode seja
+   * rejeitada com orientação funcional específica para correção da quantidade.
+   *
+   * Regras de negócio e cobertura:
+   * - Vendas por barcode permitem somente um Vale por operação.
+   * - Quantidade igual a dois deve retornar HTTP 422 com a mensagem correspondente.
+   * - A resposta não pode apresentar placeholders literais ao consumidor.
+   */
   test('MSG-006 | Venda por barcode com quantidade maior que 1 deve retornar mensagem específica', async ({ request }) => {
     skipWhenMissing({
       CUSTOMER_ID: env.data.customerId,

@@ -5,6 +5,18 @@ import { creditPayment } from '../../src/fixtures/payment.factory';
 
 test.setTimeout(180_000);
 
+/**
+ * Evita duplicidade de entidades financeiras quando a criação da cobrança exige retentativa.
+ *
+ * Objetivo do teste: validar que uma falha transitória na primeira chamada de charge seja
+ * recuperada sem recriar cliente ou cartão já confirmados no provedor.
+ *
+ * Regras de negócio e cobertura:
+ * - A primeira tentativa de cobrança pode falhar com HTTP 500 e a seguinte concluir com HTTP 201.
+ * - O mecanismo de retry deve realizar ao menos duas chamadas de charge.
+ * - Cliente e cartão devem ser criados exatamente uma vez durante toda a operação.
+ * - A resposta pública do pagamento deve permanecer aceita após a recuperação.
+ */
 test('@P0 @local @resilience retry de charge não duplica customer/card', async ({ request }) => {
   const malga = new WireMockClient(request); await malga.reset();
   await malga.setScenario({

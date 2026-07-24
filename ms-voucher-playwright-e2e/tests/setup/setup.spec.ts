@@ -11,6 +11,17 @@ test.describe('Setup de voucher | SETUP-001..SETUP-006 @contract', () => {
     skipWhenSetupContractUnsupported(env);
   });
 
+  /**
+   * Expõe a configuração de notificação em um contrato público estável e sem detalhes técnicos.
+   *
+   * Objetivo do teste: validar que a consulta do setup informe a identidade da configuração e
+   * um canal reconhecido pelo domínio para orientar vendas e cancelamentos.
+   *
+   * Regras de negócio e cobertura:
+   * - A consulta deve responder HTTP 200 com `id` e `notificationChannel`.
+   * - O canal deve ser `SMS`, `WHATSAPP` ou `AMBOS`.
+   * - Campos internos de persistência ou implementação não podem aparecer na resposta.
+   */
   test('SETUP-001 | Dado contrato notification-channel ativo, quando consultar setup, então retorna contrato público válido', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
 
@@ -24,6 +35,17 @@ test.describe('Setup de voucher | SETUP-001..SETUP-006 @contract', () => {
   });
 
   for (const channel of ['SMS', 'WHATSAPP', 'AMBOS'] as const) {
+    /**
+     * Permite configurar e persistir cada estratégia de notificação suportada pelo Vale Gás.
+     *
+     * Objetivo do teste: confirmar, para SMS, WhatsApp e ambos, que a atualização é refletida
+     * imediatamente na resposta e permanece disponível em uma nova consulta.
+     *
+     * Regras de negócio e cobertura:
+     * - Somente os três canais do domínio devem ser usados pela matriz positiva.
+     * - A atualização e a leitura subsequente devem retornar exatamente o canal escolhido.
+     * - Nenhuma das respostas pode expor campos técnicos do setup.
+     */
     test(`SETUP-${channel === 'SMS' ? '002' : channel === 'WHATSAPP' ? '003' : '004'} @mutating | Atualizar setup para ${channel}`, async ({ request }) => {
       blockProdMutation(env);
       skipWhenMutationNotAllowed(env);
@@ -47,6 +69,17 @@ test.describe('Setup de voucher | SETUP-001..SETUP-006 @contract', () => {
     });
   }
 
+  /**
+   * Mantém compatibilidade com consumidores legados que configuram notificação por flag booleana.
+   *
+   * Objetivo do teste: validar a tradução de `isSendSms=true` para o novo contrato de canais,
+   * permitindo evolução da API sem interromper integrações existentes.
+   *
+   * Regras de negócio e cobertura:
+   * - A flag legada verdadeira deve equivaler a `notificationChannel=SMS`.
+   * - A atualização deve responder HTTP 200 com o valor normalizado.
+   * - A resposta compatível não pode expor campos técnicos internos.
+   */
   test('SETUP-005 @mutating | Payload legado isSendSms=true deve ser interpretado como SMS', async ({ request }) => {
     blockProdMutation(env);
     skipWhenMutationNotAllowed(env);
@@ -63,6 +96,17 @@ test.describe('Setup de voucher | SETUP-001..SETUP-006 @contract', () => {
     expectNoSetupTechnicalFields(body);
   });
 
+  /**
+   * Impede a persistência de canais que não fazem parte da estratégia de notificação do produto.
+   *
+   * Objetivo do teste: confirmar que valores como `EMAIL` e `NONE` sejam recusados e não alterem
+   * o roteamento das comunicações de Vale Gás.
+   *
+   * Regras de negócio e cobertura:
+   * - O domínio aceita exclusivamente `SMS`, `WHATSAPP` e `AMBOS`.
+   * - Cada canal desconhecido da matriz deve ser validado de forma independente.
+   * - A tentativa de atualização deve retornar HTTP 400.
+   */
   test('SETUP-006 @mutating | Canal inválido deve retornar 400', async ({ request }) => {
     blockProdMutation(env);
     skipWhenMutationNotAllowed(env);

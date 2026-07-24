@@ -66,6 +66,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     }, 'Contexto base do bloqueio em lote não configurado.');
   });
 
+  /**
+   * Preserva a classificação funcional de falta de estoque durante o bloqueio de Vale em lote.
+   *
+   * Objetivo do teste: confirmar que um Vale sem estoque suficiente encerra apenas seu item como
+   * erro de negócio, sem ser confundido com ausência de coordenadas ou falha interna.
+   *
+   * Regras de negócio e cobertura:
+   * - A operação deve concluir mesmo quando um item termina com erro.
+   * - O item deve retornar a mensagem funcional correspondente ao código 422.007.
+   * - A resposta não pode apresentar mensagem de latitude/longitude nem erro genérico 500.000.
+   */
   test('E2E-422007-001 | Estoque insuficiente deve ser falha funcional 422.007', async ({ request }) => {
     skipWhenMissing({ BATCH_VOUCHER_INSUFFICIENT_STOCK: env.batch.voucherInsufficientStock });
     const client = new MsVoucherClient(request, env);
@@ -79,6 +90,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expect(item.message).not.toBe(PT_500000);
   });
 
+  /**
+   * Garante o bloqueio bem-sucedido e isolado quando há estoque para o Vale solicitado.
+   *
+   * Objetivo do teste: validar o caminho positivo do processamento em lote com um único código,
+   * assegurando que nenhum item adicional seja criado ou afetado.
+   *
+   * Regras de negócio e cobertura:
+   * - A operação e seu único item devem alcançar estado `COMPLETED`.
+   * - A mensagem deve confirmar o bloqueio do Vale com sucesso.
+   * - O resultado não pode carregar classificações de estoque insuficiente ou erro interno.
+   */
   test('E2E-SUCCESS-001 | Estoque suficiente deve concluir somente o item solicitado', async ({ request }) => {
     skipWhenMissing({ BATCH_VOUCHER_SUCCESS: env.batch.voucherSuccess });
     const client = new MsVoucherClient(request, env);
@@ -93,6 +115,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expect(item.message).not.toBe(PT_500000);
   });
 
+  /**
+   * Mantém a regra de localização obrigatória para geração do novo Vale na companhia de destino.
+   *
+   * Objetivo do teste: confirmar que a ausência simultânea de latitude e longitude produz a
+   * mensagem funcional 422.062 com a companhia correta, sem degradação para outro erro.
+   *
+   * Regras de negócio e cobertura:
+   * - O lote deve concluir, registrando o item como `ERROR`.
+   * - A mensagem deve informar a falta das coordenadas e identificar a CIA de destino configurada.
+   * - O caso não pode ser classificado como estoque insuficiente nem erro interno.
+   */
   test('E2E-422062-001 | Ausência das duas coordenadas deve preservar 422.062 e a CIA', async ({ request }) => {
     skipWhenMissing({
       BATCH_VOUCHER_MISSING_COORDINATES: env.batch.voucherMissingCoordinates,
@@ -116,6 +149,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expect(item.message).not.toBe(PT_500000);
   });
 
+  /**
+   * Garante que as coordenadas da operação sejam propagadas aos itens antes da aplicação das regras de bloqueio.
+   *
+   * Objetivo do teste: evitar falso 422.062 quando latitude e longitude foram informadas e permitir
+   * que a causa funcional real do item, neste caso estoque insuficiente, seja preservada.
+   *
+   * Regras de negócio e cobertura:
+   * - A operação deve conservar exatamente as coordenadas recebidas e concluir o processamento.
+   * - O item deve ser classificado como 422.007, sem referência a latitude ou longitude.
+   * - Dados geográficos válidos devem alcançar o processamento assíncrono de cada Vale.
+   */
   test('E2E-COORD-001 | Coordenadas devem chegar a cada item sem falso 422.062', async ({ request }) => {
     skipWhenMissing({ BATCH_VOUCHER_COORDINATE_PROPAGATION: env.batch.voucherCoordinatePropagation });
     const client = new MsVoucherClient(request, env);
@@ -137,6 +181,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expect(item.message).not.toContain('Latitude/Longitude');
   });
 
+  /**
+   * Preserva a informação acionável quando o código de Vale solicitado não existe.
+   *
+   * Objetivo do teste: validar que a falha 422.064 mantém o código consultado na mensagem pública,
+   * permitindo ao operador ou cliente corrigir o dado informado.
+   *
+   * Regras de negócio e cobertura:
+   * - A operação deve concluir e marcar apenas o item inexistente como `ERROR`.
+   * - A mensagem deve informar o código do Vale em caixa alta e orientar sua verificação.
+   * - A classificação não pode ser substituída por 422.007 ou por erro interno genérico.
+   */
   test('E2E-422064-001 | Vale inexistente deve manter código e mensagem funcional', async ({ request }) => {
     skipWhenMissing({ BATCH_VOUCHER_NOT_FOUND: env.batch.voucherNotFound });
     const client = new MsVoucherClient(request, env);
@@ -152,6 +207,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expect(item.message).not.toBe(PT_500000);
   });
 
+  /**
+   * Isola resultados heterogêneos para que a falha de um Vale não comprometa os demais do lote.
+   *
+   * Objetivo do teste: confirmar que sucesso, Vale não localizado e estoque insuficiente podem
+   * coexistir na mesma operação, cada qual com estado e mensagem próprios.
+   *
+   * Regras de negócio e cobertura:
+   * - Os três códigos de entrada devem gerar exatamente três itens ligados à mesma operação.
+   * - O item elegível deve concluir; os demais devem manter respectivamente 422.064 e 422.007.
+   * - Nenhum resultado funcional deve ser convertido em erro interno genérico.
+   */
   test('E2E-MIXED-001 | Lote misto deve isolar sucesso, 422.064 e 422.007', async ({ request }) => {
     skipWhenMissing({
       BATCH_MIXED_VOUCHER_SUCCESS: env.batch.mixedVoucherSuccess,
@@ -184,6 +250,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expect(operation.items.map(item => item.message)).not.toContain(PT_500000);
   });
 
+  /**
+   * Mantém o resultado de negócio estável ao apresentar a operação em idiomas diferentes.
+   *
+   * Objetivo do teste: validar que o locale usado na criação seja persistido e que uma consulta
+   * com `en-US` traduza somente a representação, sem alterar identidade, estados ou itens do lote.
+   *
+   * Regras de negócio e cobertura:
+   * - Sem `Accept-Language`, a consulta deve reutilizar a mensagem em português registrada na operação.
+   * - Com `en-US`, o 422.064 deve ser apresentado em inglês com o mesmo código de Vale.
+   * - As respostas devem declarar variação por idioma e respeitar o DTO público invariável.
+   */
   test('E2E-I18N-001 | Locale persistido e override en-US devem alterar só a representação', async ({ request }) => {
     skipWhenMissing({ BATCH_VOUCHER_NOT_FOUND: env.batch.voucherNotFound });
     const client = new MsVoucherClient(request, env);
@@ -220,6 +297,17 @@ test.describe('Regras do bloqueio em lote 422.007/422.062 | @batch @e2e @mutatin
     expectPublicVoucherBatchContract(english);
   });
 
+  /**
+   * Entrega ao sistema consumidor o resultado final do lote no mesmo contrato público da consulta.
+   *
+   * Objetivo do teste: assegurar que o callback seja emitido uma única vez após o término da
+   * operação e contenha um DTO validado, sem contexto técnico interno.
+   *
+   * Regras de negócio e cobertura:
+   * - A URL de webhook codificada deve receber exatamente um POST após a conclusão.
+   * - O callback deve manter o ID e o estado `COMPLETED` da operação.
+   * - O item deve preservar a falha 422.007 e todo o payload deve respeitar o schema público.
+   */
   test('E2E-WEBHOOK-001 | Callback deve repetir o DTO público sem contexto interno', async ({ request }) => {
     skipWhenMissing({
       BATCH_WEBHOOK_URL: env.batch.webhookUrl,

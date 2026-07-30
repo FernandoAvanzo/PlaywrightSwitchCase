@@ -14,7 +14,14 @@ const schema = z.object({
   ALLOW_MUTATION: z.string().default('false'),
   ENABLE_MUTATING_E2E: z.string().default('false'),
   MUTATION_CONFIRMATION: z.string().optional().default(''),
-  SETUP_CONTRACT: z.enum(['legacy', 'notification-channel']).default('legacy'),
+  SETUP_CONTRACT: z.enum(['legacy', 'notification-channel', 'pricing-discount-limits']).default('legacy'),
+  SETUP_ID: z.string().default('default'),
+  PRICING_TECHNICAL_CEILING: z.string().default('50.00'),
+  PRICING_MAX_ABSOLUTE_DISCOUNT: z.string().default('30.00'),
+  PRICING_MAX_PERCENTAGE_DISCOUNT: z.string().default('40.00'),
+  PRICING_ALLOW_LEGACY_CAMPAIGN_REPAIR: z.string().default('false'),
+  ENABLE_FEPAS_E2E: z.string().default('false'),
+  FEPAS_DISTRIBUTOR_DOCUMENT: z.string().optional().default(''),
   WIREMOCK_NOTIFICATION_ADMIN_URL: z.string().optional().default(''),
   WIREMOCK_SOA_ADMIN_URL: z.string().optional().default(''),
   CUSTOMER_ID: z.string().optional().default(''),
@@ -84,6 +91,22 @@ export function loadEnv(envName: TestEnvironment = (process.env.TEST_ENV ?? 'loc
     mutationConfirmationValid,
     setupContract: parsed.SETUP_CONTRACT,
     enableMutatingE2E: parsed.ENABLE_MUTATING_E2E === 'true',
+    enableFepasE2E: parsed.ENABLE_FEPAS_E2E === 'true',
+    pricing: {
+      setupId: parsed.SETUP_ID,
+      // Teto de governança da implantação. Nenhum limite efetivo pode superá-lo.
+      technicalCeiling: parsed.PRICING_TECHNICAL_CEILING,
+      // Fotografia de trabalho usada pelos cenários de importação e cotação.
+      maxAbsoluteDiscount: parsed.PRICING_MAX_ABSOLUTE_DISCOUNT,
+      maxPercentageDiscount: parsed.PRICING_MAX_PERCENTAGE_DISCOUNT,
+      // Reparo de campanhas legadas acima do teto exige sobrescrever dados comerciais
+      // existentes, por isso permanece restrito a bases descartáveis.
+      allowLegacyCampaignRepair:
+        parsed.PRICING_ALLOW_LEGACY_CAMPAIGN_REPAIR === 'true' && parsed.TEST_ENV === 'local'
+    },
+    fepas: {
+      distributorDocument: parsed.FEPAS_DISTRIBUTOR_DOCUMENT || parsed.CNPJ_DISTRIBUIDOR
+    },
     wiremockNotificationAdminUrl: parsed.WIREMOCK_NOTIFICATION_ADMIN_URL,
     wiremockSoaAdminUrl: parsed.WIREMOCK_SOA_ADMIN_URL,
     data: {

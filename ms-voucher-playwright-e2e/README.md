@@ -11,6 +11,7 @@ Projeto Playwright para validar a API `ms-voucher` com testes BDD/E2E automatiza
 - Relatório técnico em `docs/relatorio-tecnico-playwright-ms-voucher.md`.
 - Relatório de diagnóstico e correções locais em `docs/relatorio-tecnico-ajustes-execucao-local.md`.
 - Relatório da ampliação do caso `422.064` em `docs/relatorio-tecnico-vale-nao-localizado-422-064.md`.
+- Relatório da automação da correção de precificação em `docs/relatorio-tecnico-automacao-fix-precificacao-2026-07-30.md`.
 - Matriz BDD e rastreabilidade em `docs/matriz-bdd-e2e.md`.
 
 ## Pré-requisitos
@@ -106,7 +107,7 @@ Mutações em `hml` ou `local-hml` só são liberadas quando `ALLOW_MUTATION=tru
 
 > A URL de notificação fornecida usa DNS interno do Kubernetes (`*.svc.cluster.local`). Ela normalmente não resolve em uma estação local, mesmo com acesso aos bancos HML; por isso os testes de notificação não fazem parte do smoke seguro.
 
-A branch `release` usa `SETUP_CONTRACT=legacy`: ela possui somente `PUT /backoffice/vouchers/setup`, sem `GET` e sem `notificationChannel`. Os testes desse contrato futuro ficam claramente ignorados. Defina `SETUP_CONTRACT=notification-channel` apenas ao executar uma versão que implemente esses endpoints/campos. O smoke obrigatório usa `/actuator/health`; o smoke de preço é ignorado até que massa HML autorizada seja preenchida.
+A correção de precificação usa `SETUP_CONTRACT=pricing-discount-limits`: ela expõe `GET` e `PUT /backoffice/vouchers/setup`, com `maxAbsoluteDiscount` e `maxPercentageDiscount`. O contrato `notification-channel` continua reservado à versão que possui `notificationChannel`; seus testes são ignorados quando a versão de precificação está selecionada. O smoke obrigatório usa `/actuator/health`; o smoke de preço é ignorado até que massa HML autorizada seja preenchida.
 
 ### PROD
 
@@ -191,3 +192,28 @@ As URLs de gateway foram obtidas dos `servers` dos dois contratos OpenAPI do pr�
 - As portas publicadas podem ser alteradas em `.env.local`: `MS_VOUCHER_PORT`, `MYSQL_PORT`, `REDIS_PORT`, `LOCALSTACK_PORT`, `NOTIFICATION_WIREMOCK_PORT`, `SOA_WIREMOCK_PORT` e `ORACLE_PORT`.
 - Migrations locais de apoio ficam em `docker/ms-voucher-migrations` e são aplicadas pelo Flyway somente no perfil local do Compose.
 - A suíte roda com `workers: 1` porque alguns testes importam regras de preço e compartilham estado no banco local.
+
+## Regressão da correção de precificação
+
+Os cenários da correção estão separados por responsabilidade:
+
+- `tests/setup/pricing-discount-limits.spec.ts`: consulta, atualização, compatibilidade legada, fronteiras e conflito com campanhas ativas;
+- `tests/pricing/import-pricing-rules.spec.ts`: contrato, idempotência, limites, atomicidade e rejeição de aumentos/filtros sem suporte;
+- `tests/prices/prices.spec.ts`: cálculo absoluto e percentual, inatividade, prioridade e compatibilidade do JSON público;
+- `tests/e2e/pricing-to-fepas.spec.ts`: propagação do preço à tag `404`, idempotência e versionamento do estado efetivo.
+
+Execução focada:
+
+```bash
+npm run test:pricing-fix
+```
+
+O fluxo FEPAS é mutante e permanece opt-in. Em ambiente local descartável, habilite:
+
+```dotenv
+ENABLE_MUTATING_E2E=true
+ENABLE_FEPAS_E2E=true
+FEPAS_DISTRIBUTOR_DOCUMENT=03282579000110
+```
+
+Cada cenário criado pela suíte inativa suas próprias campanhas pela API oficial. Os testes de setup também restauram a fotografia encontrada antes da execução.

@@ -7,6 +7,14 @@ export async function expectJsonResponse(response: APIResponse, expectedStatus =
   return response.json();
 }
 
+export async function expectFunctionalError(response: APIResponse, expectedStatus: number, expectedCode: string) {
+  const body = await expectJsonResponse(response, expectedStatus);
+  const errors = Array.isArray(body) ? body : [body];
+
+  expect(errors).toContainEqual(expect.objectContaining({ code: expectedCode }));
+  return body;
+}
+
 export function expectNoSetupTechnicalFields(body: Record<string, unknown>) {
   const forbidden = [
     'isSendSms',

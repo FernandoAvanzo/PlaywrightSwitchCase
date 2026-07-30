@@ -52,6 +52,10 @@ export class MsVoucherClient {
     });
   }
 
+  handleFepas(payload: Record<string, unknown>) {
+    return this.request.post(this.url('se-fepas'), { data: payload });
+  }
+
   sellVoucherBackoffice(payload: unknown) {
     return this.request.post(this.url('backoffice/vouchers'), {
       data: payload,

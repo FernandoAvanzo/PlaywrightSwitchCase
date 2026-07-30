@@ -11,7 +11,7 @@ const javaDayOfWeekPlusOneByShortWeekday: Record<string, number | undefined> = {
   Thu: 5,
   Fri: 6,
   Sat: 7,
-  Sun: undefined
+  Sun: 1
 };
 
 let pricingRuleSequence = 0;
@@ -38,6 +38,18 @@ function currentGestaoVgWindow(now = new Date()) {
   };
 }
 
+function currentGestaoVgDateRange(now = new Date()) {
+  const year = Number(new Intl.DateTimeFormat('en-US', {
+    timeZone: BAHIA_TIME_ZONE,
+    year: 'numeric'
+  }).format(now));
+
+  return {
+    dataInicio: `${year}-01-01`,
+    dataFim: `${year + 1}-12-31`
+  };
+}
+
 function periodCodeForHour(hour: number) {
   if (hour >= 6 && hour < 12) {
     return 'MAN';
@@ -58,6 +70,7 @@ function hasOverride(overrides: Partial<Record<string, unknown>>, field: string)
 export function pricingRule(overrides: Partial<Record<string, unknown>> = {}) {
   const codigoRegra = Number(overrides.codigoRegra ?? nextPricingRuleCode());
   const gestaoVgWindow = currentGestaoVgWindow();
+  const dateRange = currentGestaoVgDateRange();
   const diaDaSemana = hasOverride(overrides, 'diaDaSemana')
     ? overrides.diaDaSemana
     : gestaoVgWindow.diaDaSemana;
@@ -73,10 +86,11 @@ export function pricingRule(overrides: Partial<Record<string, unknown>> = {}) {
     cidade: overrides.cidade ?? 'Salvador',
     uf: overrides.uf ?? 'ba',
     micromercado: overrides.micromercado ?? 'MM',
-    novoValor: overrides.novoValor ?? 80,
+    novoValor: overrides.novoValor ?? 10,
+    tipoValor: overrides.tipoValor ?? 'ABSOLUTO',
     statusRegra: overrides.statusRegra ?? 'A',
-    dataInicio: overrides.dataInicio ?? '2026-01-01',
-    dataFim: overrides.dataFim ?? '2027-01-01',
+    dataInicio: overrides.dataInicio ?? dateRange.dataInicio,
+    dataFim: overrides.dataFim ?? dateRange.dataFim,
     cia: overrides.cia ?? 'UG'
   };
 
@@ -85,6 +99,11 @@ export function pricingRule(overrides: Partial<Record<string, unknown>> = {}) {
   }
   if (codPeriodo !== undefined) {
     rule.codPeriodo = codPeriodo;
+  }
+  for (const optionalFilter of ['codigoPz', 'mercado', 'nucleo', 'dataInicioTroca']) {
+    if (hasOverride(overrides, optionalFilter)) {
+      rule[optionalFilter] = overrides[optionalFilter];
+    }
   }
 
   return rule;
@@ -95,6 +114,7 @@ export function percentageDiscountRule(overrides: Partial<Record<string, unknown
   delete (base as Record<string, unknown>).novoValor;
   return {
     ...base,
+    tipoValor: overrides.tipoValor ?? 'PERCENTUAL',
     decrescimo: overrides.decrescimo ?? 10
   };
 }
@@ -104,6 +124,20 @@ export function percentageIncreaseRule(overrides: Partial<Record<string, unknown
   delete (base as Record<string, unknown>).novoValor;
   return {
     ...base,
+    tipoValor: overrides.tipoValor ?? 'PERCENTUAL',
     acrescimo: overrides.acrescimo ?? 15
+  };
+}
+
+/**
+ * Constrói a nova fotografia que encerra a elegibilidade de uma campanha criada pela suíte.
+ *
+ * A limpeza usa a própria API oficial da Gestão VG para manter histórico e rastreabilidade,
+ * sem excluir registros diretamente do banco.
+ */
+export function inactivePricingRule(rule: Record<string, unknown>) {
+  return {
+    ...rule,
+    statusRegra: 'I'
   };
 }

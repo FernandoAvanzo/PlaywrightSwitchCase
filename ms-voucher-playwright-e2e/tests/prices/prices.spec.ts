@@ -3,6 +3,8 @@ import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
 import { loadEnv } from '../../src/config/env.js';
 import {
   inactivePricingRule,
+  legacyAbsoluteRule,
+  legacyPercentageRule,
   nextPricingRuleCode,
   percentageDiscountRule,
   percentageIncreaseRule,
@@ -81,6 +83,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-015 @pricin
    *
    * Regras de negócio representadas:
    * - `novoValor` representa o valor a abater, e não o preço final.
+   * - A modalidade absoluta deve ser inferida mesmo sem `tipoValor` no contrato legado.
    * - A campanha deve atuar sobre o preço líquido já composto.
    * - O resultado deve preservar duas casas decimais e permanecer positivo.
    */
@@ -93,7 +96,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-015 @pricin
       200
     ));
     const discount = 10;
-    const rule = pricingRule({
+    const rule = legacyAbsoluteRule({
       codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
@@ -117,6 +120,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-015 @pricin
    *
    * Regras de negócio representadas:
    * - `decrescimo` expressa o percentual a abater do preço vigente.
+   * - A modalidade percentual deve ser inferida mesmo sem `tipoValor` no contrato legado.
    * - O cálculo intermediário e a escala monetária usam HALF_EVEN.
    * - A resposta deve corresponder exatamente ao preço anterior menos o percentual configurado.
    */
@@ -129,7 +133,7 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-015 @pricin
       200
     ));
     const percentage = 10;
-    const rule = percentageDiscountRule({
+    const rule = legacyPercentageRule({
       codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,

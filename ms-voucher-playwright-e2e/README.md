@@ -12,6 +12,7 @@ Projeto Playwright para validar a API `ms-voucher` com testes BDD/E2E automatiza
 - Relatório de diagnóstico e correções locais em `docs/relatorio-tecnico-ajustes-execucao-local.md`.
 - Relatório da ampliação do caso `422.064` em `docs/relatorio-tecnico-vale-nao-localizado-422-064.md`.
 - Relatório da automação da correção de precificação em `docs/relatorio-tecnico-automacao-fix-precificacao-2026-07-30.md`.
+- Relatório da compatibilidade E2E de `tipoValor` em `docs/relatorio-tecnico-implementacao-e2e-tipo-valor-2026-07-31.md`.
 - Matriz BDD e rastreabilidade em `docs/matriz-bdd-e2e.md`.
 
 ## Pré-requisitos

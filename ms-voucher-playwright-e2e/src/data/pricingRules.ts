@@ -130,6 +130,32 @@ export function percentageIncreaseRule(overrides: Partial<Record<string, unknown
 }
 
 /**
+ * Representa o contrato legado do Gestão VG, no qual a modalidade não é duplicada no payload.
+ *
+ * A cópia evita alterar a massa original e deixa explícito, no cenário consumidor, que a
+ * ausência de `tipoValor` é intencional e faz parte da regra de compatibilidade exercitada.
+ */
+export function withoutTipoValor(rule: Record<string, unknown>) {
+  const legacyRule = { ...rule };
+  delete legacyRule.tipoValor;
+  return legacyRule;
+}
+
+/**
+ * Constrói uma campanha absoluta no formato legado para que `novoValor` determine a modalidade.
+ */
+export function legacyAbsoluteRule(overrides: Partial<Record<string, unknown>> = {}) {
+  return withoutTipoValor(pricingRule(overrides));
+}
+
+/**
+ * Constrói uma campanha percentual no formato legado para que `decrescimo` determine a modalidade.
+ */
+export function legacyPercentageRule(overrides: Partial<Record<string, unknown>> = {}) {
+  return withoutTipoValor(percentageDiscountRule(overrides));
+}
+
+/**
  * Constrói a nova fotografia que encerra a elegibilidade de uma campanha criada pela suíte.
  *
  * A limpeza usa a própria API oficial da Gestão VG para manter histórico e rastreabilidade,

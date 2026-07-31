@@ -3,6 +3,7 @@ import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
 import { loadEnv } from '../../src/config/env.js';
 import {
   inactivePricingRule,
+  legacyAbsoluteRule,
   nextPricingRuleCode,
   pricingRule
 } from '../../src/data/pricingRules.js';
@@ -61,7 +62,7 @@ async function discoverAndLoad(client: MsVoucherClient, terminalVersion: number 
   return { discovery, load, version };
 }
 
-test.describe('Precificação até a carga FEPAS | FEP-001..FEP-008 @pricing @fepas @e2e @mutating', () => {
+test.describe('Precificação até a carga FEPAS | FEP-001..FEP-009 @pricing @fepas @e2e @mutating', () => {
   test.beforeEach(() => {
     importedRules = [];
     skipWhenPricingDiscountContractUnsupported(env);
@@ -97,7 +98,7 @@ test.describe('Precificação até a carga FEPAS | FEP-001..FEP-008 @pricing @fe
    * Entrega ao PDV exatamente o preço promocional aprovado pelo catálogo de vouchers.
    *
    * Regras de negócio representadas:
-   * - O desconto absoluto deve ser refletido primeiro em `GET /prices`.
+   * - O desconto absoluto sem `tipoValor` deve ser inferido e refletido primeiro em `GET /prices`.
    * - Os três campos monetários da tag 404 devem repetir o mesmo preço final em centavos.
    * - O terminal não pode recalcular o benefício nem receber o preço-base por engano.
    */
@@ -108,7 +109,7 @@ test.describe('Precificação até a carga FEPAS | FEP-001..FEP-008 @pricing @fe
       200
     ));
     const discount = 10;
-    const rule = pricingRule({
+    const rule = legacyAbsoluteRule({
       codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
@@ -246,5 +247,57 @@ test.describe('Precificação até a carga FEPAS | FEP-001..FEP-008 @pricing @fe
       expectedBaseAmount,
       expectedBaseAmount
     ]);
+  });
+
+  /**
+   * Preserva a versão entregue ao PDV quando apenas o campo redundante de modalidade é acrescentado.
+   *
+   * Regras de negócio representadas:
+   * - Uma campanha absoluta sem `tipoValor` e a mesma campanha com `ABSOLUTO` são equivalentes.
+   * - O reenvio compatível deve ser ignorado e manter o mesmo preço promocional na tag 404.
+   * - O terminal que já possui a versão carregada não deve receber anúncio de uma nova tabela.
+   */
+  test('FEP-009 | Não versionar presença compatível de tipoValor', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const baseline = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+    const discount = 7;
+    const legacyRule = legacyAbsoluteRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      novoValor: discount
+    });
+    const explicitRule = { ...legacyRule, tipoValor: 'ABSOLUTO' };
+    importedRules.push(legacyRule, explicitRule);
+
+    await expectJsonResponse(await client.importGestaoVgPricingRules([legacyRule]), 200);
+    const expectedPrice = applyAbsoluteDiscount(monetaryField(baseline), discount);
+    const initialLoad = await discoverAndLoad(client, '00000000');
+    expect(readFirstTag404Amounts(initialLoad.load)).toEqual([
+      toFepasAmount(expectedPrice),
+      toFepasAmount(expectedPrice),
+      toFepasAmount(expectedPrice)
+    ]);
+
+    const importResult = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([explicitRule]),
+      200
+    );
+    expect(importResult.totalCriado).toBe(0);
+    expect(importResult.totalAtualizado).toBe(0);
+    expect(importResult.totalIgnorado).toBe(1);
+
+    const effectivePrice = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+    expect(isSameMonetaryValue(monetaryField(effectivePrice), expectedPrice)).toBeTruthy();
+
+    const repeatedDiscovery = await sendFepas(client, initialLoad.version, 'discovery');
+    expect(repeatedDiscovery.BIT_39).toBe('00');
+    expect(repeatedDiscovery.BIT_70).toBe('001');
   });
 });

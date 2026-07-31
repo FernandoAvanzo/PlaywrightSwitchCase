@@ -3,6 +3,8 @@ import { loadEnv } from '../../src/config/env.js';
 import { MsVoucherClient } from '../../src/api/msVoucherClient.js';
 import {
   inactivePricingRule,
+  legacyAbsoluteRule,
+  legacyPercentageRule,
   pricingRule,
   percentageDiscountRule,
   percentageIncreaseRule,
@@ -19,7 +21,7 @@ import {
 const env = loadEnv();
 let importedRules: Record<string, unknown>[] = [];
 
-test.describe('Importação Gestão VG | PRIC-001..PRIC-013 @pricing @contract', () => {
+test.describe('Importação Gestão VG | PRIC-001..PRIC-021 @pricing @contract', () => {
   test.beforeEach(() => {
     importedRules = [];
     blockProdMutation(env);
@@ -230,28 +232,44 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-013 @pricing @contract',
   });
 
   /**
-   * Exige que a modalidade comercial seja declarada de forma explícita pelo Gestão VG.
+   * Mantém a compatibilidade das campanhas legadas sem exigir a repetição da modalidade.
    *
-   * Objetivo do teste: impedir que uma campanha sem `tipoValor` seja persistida com uma
-   * interpretação implícita diferente da intenção do consumidor.
+   * Objetivo do teste: comprovar que o próprio campo de benefício comunica a intenção comercial
+   * nas modalidades absoluta e percentual quando `tipoValor` não faz parte do payload.
    *
    * Regras de negócio e cobertura:
-   * - Toda campanha deve declarar `ABSOLUTO` ou `PERCENTUAL`.
-   * - A ausência do campo obrigatório deve retornar HTTP 400.
-   * - Nenhuma regra incompleta pode entrar no catálogo de campanhas.
+   * - `novoValor` sem `tipoValor` deve ser aceito como desconto absoluto.
+   * - `decrescimo` sem `tipoValor` deve ser aceito como desconto percentual.
+   * - Cada campanha inédita deve ser criada sem erro de campo obrigatório.
    */
-  test('PRIC-008 | tipoValor ausente deve ser rejeitado', async ({ request }) => {
+  test('PRIC-008 | Inferir tipoValor ausente nas duas modalidades', async ({ request }) => {
     const client = new MsVoucherClient(request, env);
-    const rule = percentageDiscountRule({
-      codigoRegra: nextPricingRuleCode(),
-      cnpj: env.data.cnpjDistribuidor,
-      produto: env.data.productCode,
-      decrescimo: 10
-    });
-    delete (rule as Record<string, unknown>).tipoValor;
+    const legacyRules = [
+      legacyAbsoluteRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        novoValor: 10
+      }),
+      legacyPercentageRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        decrescimo: 10
+      })
+    ];
+    importedRules.push(...legacyRules);
 
-    const response = await client.importGestaoVgPricingRules([rule]);
-    await expectFunctionalError(response, 400, '400.001');
+    for (const rule of legacyRules) {
+      const body = await expectJsonResponse(
+        await client.importGestaoVgPricingRules([rule]),
+        200
+      );
+      expect(body.totalRecebido).toBe(1);
+      expect(body.totalCriado).toBe(1);
+      expect(body.totalAtualizado).toBe(0);
+      expect(body.totalIgnorado).toBe(0);
+    }
   });
 
   /**
@@ -333,13 +351,13 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-013 @pricing @contract',
     const setup = await expectJsonResponse(await client.getSetup(), 200);
     const absoluteLimit = Number(setup.maxAbsoluteDiscount);
     const percentageLimit = Number(setup.maxPercentageDiscount);
-    const acceptedAbsolute = pricingRule({
+    const acceptedAbsolute = legacyAbsoluteRule({
       codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
       novoValor: absoluteLimit
     });
-    const acceptedPercentage = percentageDiscountRule({
+    const acceptedPercentage = legacyPercentageRule({
       codigoRegra: nextPricingRuleCode(),
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
@@ -353,12 +371,12 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-013 @pricing @contract',
     );
     expect(accepted.totalCriado + accepted.totalAtualizado + accepted.totalIgnorado).toBe(2);
 
-    const aboveAbsolute = pricingRule({
+    const aboveAbsolute = legacyAbsoluteRule({
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
       novoValor: (absoluteLimit + 0.01).toFixed(2)
     });
-    const abovePercentage = percentageDiscountRule({
+    const abovePercentage = legacyPercentageRule({
       cnpj: env.data.cnpjDistribuidor,
       produto: env.data.productCode,
       decrescimo: (percentageLimit + 0.01).toFixed(2)
@@ -446,5 +464,301 @@ test.describe('Importação Gestão VG | PRIC-001..PRIC-013 @pricing @contract',
       200
     );
     expect(retry.totalCriado).toBe(1);
+  });
+
+  /**
+   * Preserva o domínio fechado de modalidades quando o campo opcional é efetivamente informado.
+   *
+   * Objetivo do teste: impedir que um valor desconhecido seja aceito apenas porque `tipoValor`
+   * deixou de ser obrigatório para contratos legados.
+   *
+   * Regras de negócio e cobertura:
+   * - A opcionalidade permite ausência, mas não amplia o enum comercial.
+   * - Um valor diferente de `ABSOLUTO` e `PERCENTUAL` deve retornar 400.004.
+   * - A campanha inválida não pode ser contabilizada como criada ou atualizada.
+   */
+  test('PRIC-014 | Rejeitar tipoValor fora do domínio conhecido', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const invalidRule = pricingRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      novoValor: 10,
+      tipoValor: 'OUTRO'
+    });
+
+    await expectFunctionalError(
+      await client.importGestaoVgPricingRules([invalidRule]),
+      400,
+      '400.004'
+    );
+  });
+
+  /**
+   * Impede que a modalidade declarada contradiga o benefício que determina o cálculo da campanha.
+   *
+   * Objetivo do teste: proteger as duas direções de divergência para que nenhum consumidor consiga
+   * rotular um desconto monetário como percentual, nem um percentual como absoluto.
+   *
+   * Regras de negócio e cobertura:
+   * - `novoValor` combinado com `PERCENTUAL` deve retornar 400.039.
+   * - `decrescimo` combinado com `ABSOLUTO` deve retornar 400.039.
+   * - A inferência do backend continua sendo a fonte de verdade da modalidade.
+   */
+  test('PRIC-015 | Rejeitar tipoValor divergente do campo de desconto', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const mismatchedRules = [
+      pricingRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        novoValor: 10,
+        tipoValor: 'PERCENTUAL'
+      }),
+      percentageDiscountRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        decrescimo: 10,
+        tipoValor: 'ABSOLUTO'
+      })
+    ];
+
+    for (const rule of mismatchedRules) {
+      await expectFunctionalError(
+        await client.importGestaoVgPricingRules([rule]),
+        400,
+        '400.039'
+      );
+    }
+  });
+
+  /**
+   * Trata o contrato legado e a declaração explícita compatível como a mesma intenção comercial.
+   *
+   * Objetivo do teste: comprovar que acrescentar `tipoValor=ABSOLUTO` a uma campanha já importada
+   * sem o campo não produz atualização artificial nem altera sua identidade canônica.
+   *
+   * Regras de negócio e cobertura:
+   * - A primeira fotografia legada deve criar a campanha.
+   * - O reenvio semanticamente equivalente deve ser ignorado.
+   * - Os contadores de criação e atualização devem permanecer zerados no segundo envio.
+   */
+  test('PRIC-016 | Ignorar presença compatível de tipoValor após payload legado', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const legacyRule = legacyAbsoluteRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      novoValor: 10
+    });
+    const explicitRule = { ...legacyRule, tipoValor: 'ABSOLUTO' };
+    importedRules.push(legacyRule, explicitRule);
+
+    const first = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([legacyRule]),
+      200
+    );
+    expect(first.totalCriado).toBe(1);
+
+    const second = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([explicitRule]),
+      200
+    );
+    expect(second.totalRecebido).toBe(1);
+    expect(second.totalCriado).toBe(0);
+    expect(second.totalAtualizado).toBe(0);
+    expect(second.totalIgnorado).toBe(1);
+  });
+
+  /**
+   * Processa em uma única transação campanhas legadas de modalidades comerciais diferentes.
+   *
+   * Objetivo do teste: demonstrar que a inferência é aplicada item a item sem exigir que todo o
+   * lote use uma única modalidade ou uma declaração redundante de `tipoValor`.
+   *
+   * Regras de negócio e cobertura:
+   * - Um lote pode combinar desconto absoluto e percentual válidos.
+   * - Os dois itens sem `tipoValor` devem ser criados na mesma chamada.
+   * - O resumo deve refletir exatamente os dois itens recebidos e processados.
+   */
+  test('PRIC-017 | Aceitar lote misto legado nas modalidades absoluta e percentual', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const legacyRules = [
+      legacyAbsoluteRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        novoValor: 8
+      }),
+      legacyPercentageRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        decrescimo: 8
+      })
+    ];
+    importedRules.push(...legacyRules);
+
+    const body = await expectJsonResponse(
+      await client.importGestaoVgPricingRules(legacyRules),
+      200
+    );
+    expect(body.totalRecebido).toBe(2);
+    expect(body.totalCriado).toBe(2);
+    expect(body.totalAtualizado).toBe(0);
+    expect(body.totalIgnorado).toBe(0);
+  });
+
+  /**
+   * Mantém a atomicidade quando uma campanha legada válida divide o lote com uma declaração divergente.
+   *
+   * Objetivo do teste: provar por reenvio que a validação de todos os itens acontece antes de
+   * qualquer persistência, mesmo quando o primeiro item seria individualmente aceito.
+   *
+   * Regras de negócio e cobertura:
+   * - A divergência do segundo item deve rejeitar o lote com 400.039.
+   * - A campanha legada válida não pode ser salva parcialmente.
+   * - Ao ser reenviada sozinha, ela deve ser criada, e não ignorada.
+   */
+  test('PRIC-018 | Reverter lote com item legado válido e tipoValor divergente', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const validLegacyRule = legacyAbsoluteRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      novoValor: 7
+    });
+    const invalidRule = pricingRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      novoValor: 7,
+      tipoValor: 'PERCENTUAL'
+    });
+
+    await expectFunctionalError(
+      await client.importGestaoVgPricingRules([validLegacyRule, invalidRule]),
+      400,
+      '400.039'
+    );
+
+    importedRules.push(validLegacyRule);
+    const retry = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([validLegacyRule]),
+      200
+    );
+    expect(retry.totalCriado).toBe(1);
+    expect(retry.totalAtualizado).toBe(0);
+    expect(retry.totalIgnorado).toBe(0);
+  });
+
+  /**
+   * Interpreta valores nulo e em branco como ausência do campo opcional de compatibilidade.
+   *
+   * Objetivo do teste: cobrir consumidores que serializam `tipoValor` sem conteúdo, preservando
+   * a modalidade derivada do benefício e evitando uma regressão para obrigatoriedade implícita.
+   *
+   * Regras de negócio e cobertura:
+   * - `null` com `novoValor` deve ser aceito como modalidade absoluta.
+   * - Espaços com `decrescimo` devem ser aceitos como modalidade percentual.
+   * - Ambos os itens inéditos devem ser criados na mesma importação.
+   */
+  test('PRIC-019 | Tratar tipoValor nulo ou em branco como campo ausente', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const nullableAbsolute = {
+      ...legacyAbsoluteRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        novoValor: 6
+      }),
+      tipoValor: null
+    };
+    const blankPercentage = {
+      ...legacyPercentageRule({
+        codigoRegra: nextPricingRuleCode(),
+        cnpj: env.data.cnpjDistribuidor,
+        produto: env.data.productCode,
+        decrescimo: 6
+      }),
+      tipoValor: '   '
+    };
+    importedRules.push(nullableAbsolute, blankPercentage);
+
+    const body = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([nullableAbsolute, blankPercentage]),
+      200
+    );
+    expect(body.totalRecebido).toBe(2);
+    expect(body.totalCriado).toBe(2);
+    expect(body.totalAtualizado).toBe(0);
+    expect(body.totalIgnorado).toBe(0);
+  });
+
+  /**
+   * Exige que a campanha informe exatamente um benefício mesmo quando `tipoValor` é opcional.
+   *
+   * Objetivo do teste: impedir que a compatibilidade do campo de modalidade transforme uma
+   * campanha sem valor absoluto nem percentual em uma condição comercial válida.
+   *
+   * Regras de negócio e cobertura:
+   * - A ausência simultânea de `novoValor` e `decrescimo` deve retornar 400.033.
+   * - A inferência somente existe quando há um campo de desconto reconhecido.
+   * - Nenhuma campanha sem benefício pode alcançar a persistência.
+   */
+  test('PRIC-020 | Rejeitar campanha sem campo de desconto inferível', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const ruleWithoutDiscount = legacyAbsoluteRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode
+    });
+    delete ruleWithoutDiscount.novoValor;
+
+    await expectFunctionalError(
+      await client.importGestaoVgPricingRules([ruleWithoutDiscount]),
+      400,
+      '400.033'
+    );
+  });
+
+  /**
+   * Mantém a idempotência quando um consumidor deixa de enviar uma modalidade antes explícita.
+   *
+   * Objetivo do teste: validar a equivalência canônica também na direção contrato atual para
+   * contrato legado, sem depender da ordem em que as versões do consumidor chegam ao serviço.
+   *
+   * Regras de negócio e cobertura:
+   * - A campanha percentual explícita deve ser criada normalmente.
+   * - O reenvio sem `tipoValor` deve representar o mesmo benefício.
+   * - A segunda fotografia deve ser ignorada, sem criação ou atualização.
+   */
+  test('PRIC-021 | Ignorar ausência de tipoValor após payload explícito compatível', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const explicitRule = percentageDiscountRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      decrescimo: 5,
+      tipoValor: 'PERCENTUAL'
+    });
+    const legacyRule = legacyPercentageRule(explicitRule);
+    importedRules.push(explicitRule, legacyRule);
+
+    const first = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([explicitRule]),
+      200
+    );
+    expect(first.totalCriado).toBe(1);
+
+    const second = await expectJsonResponse(
+      await client.importGestaoVgPricingRules([legacyRule]),
+      200
+    );
+    expect(second.totalRecebido).toBe(1);
+    expect(second.totalCriado).toBe(0);
+    expect(second.totalAtualizado).toBe(0);
+    expect(second.totalIgnorado).toBe(1);
   });
 });

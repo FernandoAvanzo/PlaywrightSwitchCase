@@ -33,7 +33,7 @@ function monetaryField(price: Record<string, unknown>) {
   return value as number | string;
 }
 
-test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-015 @pricing', () => {
+test.describe('Consulta de preços com Gestão VG @pricing', () => {
   test.beforeEach(() => {
     importedRules = [];
     skipWhenMissing({
@@ -290,5 +290,129 @@ test.describe('Consulta de preços com Gestão VG | PRICE-001..PRICE-015 @pricin
 
     expect(price).not.toHaveProperty('appliedPricingRuleCode');
     expect(price).not.toHaveProperty('appliedPricingRulePayloadHash');
+  });
+
+  /**
+   * Mantém a oferta comercial disponível quando não há campanha aplicável ao contexto do cliente.
+   *
+   * Regras de negócio representadas:
+   * - A ausência de benefício promocional não significa ausência de preço.
+   * - `GET /prices` deve responder HTTP 200 com o produto vigente.
+   * - A oferta de fallback deve conter um valor monetário positivo e não pode expor erro 422.065.
+   */
+  test('PRICE-016 @smoke @fallback | Sem campanha aplicável, retornar a oferta vigente', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const body = await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    );
+    const price = firstPrice(body);
+
+    expect(Number(monetaryField(price))).toBeGreaterThan(0);
+    expect(price).not.toHaveProperty('appliedPricingRuleCode');
+    expect(price).not.toHaveProperty('appliedPricingRulePayloadHash');
+    expect(JSON.stringify(body)).not.toContain('422.065');
+  });
+
+  /**
+   * Protege a oferta-base contra uma campanha ativa cujo critério de CNPJ não corresponde ao cliente.
+   *
+   * Regras de negócio representadas:
+   * - A campanha é uma transformação opcional da oferta vigente.
+   * - Um filtro divergente torna a campanha inelegível sem indisponibilizar o preço.
+   * - O valor monetário retornado deve permanecer idêntico ao baseline anterior à importação.
+   */
+  test('PRICE-017 @mutating @fallback | CNPJ divergente preserva a oferta-base', async ({ request }) => {
+    blockProdMutation(env);
+    skipWhenMutationNotAllowed(env);
+    const client = new MsVoucherClient(request, env);
+    const baseline = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+    const mismatchedRule = pricingRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: '99.999.999/9999-99',
+      produto: env.data.productCode,
+      novoValor: 1
+    });
+    importedRules.push(mismatchedRule);
+
+    await expectJsonResponse(await client.importGestaoVgPricingRules([mismatchedRule]), 200);
+    const price = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+
+    expect(isSameMonetaryValue(monetaryField(price), monetaryField(baseline))).toBeTruthy();
+    expect(price).not.toHaveProperty('appliedPricingRuleCode');
+    expect(JSON.stringify(price)).not.toContain('422.065');
+  });
+
+  /**
+   * Restaura a oferta-base assim que uma campanha promocional deixa de estar ativa.
+   *
+   * Regras de negócio representadas:
+   * - A campanha válida pode reduzir temporariamente o preço vigente.
+   * - A inativação oficial encerra a elegibilidade sem apagar o histórico.
+   * - Uma nova consulta deve retornar exatamente o baseline, sem benefício residual ou 422.065.
+   */
+  test('PRICE-020 @mutating @fallback | Inativação restaura o preço-base', async ({ request }) => {
+    blockProdMutation(env);
+    skipWhenMutationNotAllowed(env);
+    const client = new MsVoucherClient(request, env);
+    const baseline = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+    const rule = pricingRule({
+      codigoRegra: nextPricingRuleCode(),
+      cnpj: env.data.cnpjDistribuidor,
+      produto: env.data.productCode,
+      novoValor: 1
+    });
+    importedRules.push(rule);
+
+    await expectJsonResponse(await client.importGestaoVgPricingRules([rule]), 200);
+    const promotionalPrice = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+    expect(isSameMonetaryValue(
+      monetaryField(promotionalPrice),
+      applyAbsoluteDiscount(monetaryField(baseline), 1)
+    )).toBeTruthy();
+
+    const inactive = inactivePricingRule(rule);
+    importedRules.push(inactive);
+    await expectJsonResponse(await client.importGestaoVgPricingRules([inactive]), 200);
+    const restoredPrice = firstPrice(await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    ));
+
+    expect(isSameMonetaryValue(monetaryField(restoredPrice), monetaryField(baseline))).toBeTruthy();
+    expect(JSON.stringify(restoredPrice)).not.toContain('422.065');
+  });
+
+  /**
+   * Preserva o catálogo completo quando somente um produto depende do fallback de preço.
+   *
+   * Regras de negócio representadas:
+   * - A ausência de campanha para um produto não deve remover itens irmãos do catálogo.
+   * - Cada item deve conservar uma oferta monetária positiva e independente.
+   * - O contrato de preços deve continuar utilizável para consumidores multiproduto.
+   */
+  test('PRICE-022 @catalog @fallback | Fallback de um produto não remove os demais itens', async ({ request }) => {
+    skipWhenMissing({ PRODUCT_CODE_SECOND: env.data.secondProductCode });
+    const client = new MsVoucherClient(request, env);
+    const body = await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.secondProductCode }),
+      200
+    );
+    const price = firstPrice(body);
+
+    expect(Number(monetaryField(price))).toBeGreaterThan(0);
+    expect(JSON.stringify(body)).not.toContain('422.065');
   });
 });

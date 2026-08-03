@@ -9,7 +9,7 @@ import { blockProdMutation, skipWhenMissing, skipWhenMutatingE2EDisabled, skipWh
 
 const env = loadEnv();
 
-test.describe('Fluxos E2E críticos | E2E-001..E2E-003 @e2e @mutating', () => {
+test.describe('Fluxos E2E críticos | E2E-001..E2E-003 e PRICE-021 @e2e @mutating', () => {
   test.beforeEach(() => {
     skipWhenSetupContractUnsupported(env);
     blockProdMutation(env);
@@ -101,5 +101,28 @@ test.describe('Fluxos E2E críticos | E2E-001..E2E-003 @e2e @mutating', () => {
 
     expect(await wiremock.countPostRequests('/notification/v1/sms')).toBeGreaterThanOrEqual(1);
     expect(await wiremock.countPostRequests('/notification/v1/whatsapp')).toBe(0);
+  });
+
+  /**
+   * Mantém a geração do vale disponível quando a consulta de preço utiliza o fallback vigente.
+   *
+   * Regras de negócio representadas:
+   * - A ausência de campanha aplicável não pode interromper a jornada comercial.
+   * - O preço retornado por `GET /prices` deve estar disponível antes da venda.
+   * - A geração do vale deve ser aceita sem depender de um código interno de campanha.
+   * - O cenário só executa com massa mutante e notificação explicitamente autorizadas.
+   */
+  test('PRICE-021 @fallback | Gerar vale usando a oferta vigente sem campanha', async ({ request }) => {
+    const client = new MsVoucherClient(request, env);
+    const prices = await expectJsonResponse(
+      await client.getPrices({ 'code-product': env.data.productCode }),
+      200
+    );
+    expect(Array.isArray(prices)).toBeTruthy();
+    expect(prices.length).toBeGreaterThan(0);
+    expect(JSON.stringify(prices)).not.toContain('422.065');
+
+    const sell = await client.sellVoucherBackoffice(backofficeSellVoucherPayload(env));
+    expect(sell.ok(), await sell.text()).toBeTruthy();
   });
 });

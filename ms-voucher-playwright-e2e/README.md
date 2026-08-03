@@ -13,6 +13,8 @@ Projeto Playwright para validar a API `ms-voucher` com testes BDD/E2E automatiza
 - Relatório da ampliação do caso `422.064` em `docs/relatorio-tecnico-vale-nao-localizado-422-064.md`.
 - Relatório da automação da correção de precificação em `docs/relatorio-tecnico-automacao-fix-precificacao-2026-07-30.md`.
 - Relatório da compatibilidade E2E de `tipoValor` em `docs/relatorio-tecnico-implementacao-e2e-tipo-valor-2026-07-31.md`.
+- Relatório da automação do fallback para preço-base em `docs/relatorio-tecnico-implementacao-fallback-preco-base-2026-08-03.md`.
+- Relatório da correção do `socket hang up` em `docs/relatorio-tecnico-correcao-socket-hang-up-fallback-2026-08-03.md`.
 - Matriz BDD e rastreabilidade em `docs/matriz-bdd-e2e.md`.
 
 ## Pré-requisitos
@@ -218,3 +220,5 @@ FEPAS_DISTRIBUTOR_DOCUMENT=03282579000110
 ```
 
 Cada cenário criado pela suíte inativa suas próprias campanhas pela API oficial. Os testes de setup também restauram a fotografia encontrada antes da execução.
+
+Para a regressão do fallback, use `npm run test:prices -- --grep 'PRICE-016|PRICE-017|PRICE-020|PRICE-022'`. O caso `PRICE-022` requer `PRODUCT_CODE_SECOND`; casos mutantes continuam exigindo a liberação explícita já descrita acima.

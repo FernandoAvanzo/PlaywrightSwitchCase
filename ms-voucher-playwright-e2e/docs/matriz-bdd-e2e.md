@@ -8,9 +8,9 @@ Esta matriz foi derivada do relatório técnico de referência anexado.
 | Setup | SETUP-001 a SETUP-006 | `tests/setup/setup.spec.ts` |
 | Notificação | NOTIF-001, NOTIF-002, NOTIF-003, NOTIF-004, NOTIF-007 | `tests/notification/notification-fallback.spec.ts` |
 | Importação Gestão VG | PRIC-001 a PRIC-009 | `tests/pricing/import-pricing-rules.spec.ts` |
-| Consulta de preços | PRICE-001, PRICE-002, PRICE-003, PRICE-004, PRICE-006 | `tests/prices/prices.spec.ts` |
+| Consulta de preços | PRICE-001, PRICE-002, PRICE-003, PRICE-004, PRICE-006, PRICE-015, PRICE-016, PRICE-017, PRICE-020, PRICE-022 | `tests/prices/prices.spec.ts` |
 | Mensagens funcionais | MSG-006, MSG-008 como scaffolds executáveis após confirmar paths/massa | `tests/messages/functional-messages.spec.ts` |
-| E2E integrado | E2E-001, E2E-003 | `tests/e2e/critical-flows.spec.ts` |
+| E2E integrado | E2E-001, E2E-003, PRICE-021 | `tests/e2e/critical-flows.spec.ts` |
 | Bloqueio em lote | E2E-422007-001, E2E-SUCCESS-001, E2E-422062-001, E2E-COORD-001, E2E-422064-001, E2E-MIXED-001, E2E-I18N-001, E2E-WEBHOOK-001, E2E-CONTRACT-001 a 004 e E2E-422064-STUB-001 a 006 | `tests/batch/*.spec.ts` |
 
 ## Casos ainda dependentes de massa ou confirmação de endpoint
@@ -25,6 +25,7 @@ Esta matriz foi derivada do relatório técnico de referência anexado.
 | E2E-002 | Requer voucher vendido e cancelável com massa controlada. |
 | E2E-422007-001 a E2E-WEBHOOK-001 | Exigem contexto `BATCH_*`, Vales exclusivos por cenário, consumidor assíncrono ativo e habilitação mutante explícita. Os casos determinísticos `E2E-422064-STUB-001` a `006` são a exceção: exigem apenas o Compose local, os dois WireMocks e a habilitação mutante. |
 | E2E-WEBHOOK-001 | Exige callback acessível pela aplicação e `WIREMOCK_NOTIFICATION_ADMIN_URL` acessível pelo runner. |
+| PRICE-022 | Exige `PRODUCT_CODE_SECOND` com massa de catálogo aprovada. |
 | E2E-ROLLBACK-001 | A comprovação completa ainda exige snapshots somente leitura do banco antes/depois. |
 
 ## Fronteiras determinísticas da regra `422.064`
@@ -45,3 +46,7 @@ Cada teste usa:
 - `test.step` para passos `Dado/Quando/Então` nos fluxos integrados;
 - tags por domínio: `@smoke`, `@mutating`, `@pricing`, `@notification`, `@e2e`, `@batch` e `@contract`;
 - guards para impedir mutações acidentais em produção.
+
+## Fallback para preço-base
+
+Os casos `PRICE-016`, `PRICE-017`, `PRICE-020` e `PRICE-022` validam a continuidade da oferta quando nenhuma campanha se aplica, quando um filtro diverge, após inativação e em catálogo multiproduto. A cobertura de candidatas defensivamente inválidas permanece na camada Java/fixture local, sem SQL em HML.

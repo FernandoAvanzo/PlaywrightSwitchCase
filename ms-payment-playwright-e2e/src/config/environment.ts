@@ -18,11 +18,15 @@ const schema = z.object({
   MS_PAYMENT_BASE_URL: z.string().url().default('http://localhost:8001/payment/v1'),
   WIREMOCK_URL: z.string().url().default('http://localhost:8089'),
   WEBHOOK_MOCK_URL: z.string().url().default('http://localhost:8090'),
+  WEBHOOK_CALLBACK_URL: z.string().url().default('http://webhook-mock:8080'),
   MALGA_MERCHANT_ID: z.string().default('merchant-local'),
   ACCESS_TOKEN: z.string().optional(),
   CLIENT_ID: z.string().optional(),
   POLL_TIMEOUT_MS: z.coerce.number().positive().default(30_000),
-  ALLOW_DESTRUCTIVE_TESTS: z.string().default('false')
+  ALLOW_DESTRUCTIVE_TESTS: z.string().default('false'),
+  ORACLE_EVIDENCE_MODE: z.string().default('false'),
+  PAYMENT_EVENTS_QUEUE_URL: z.string().url().optional(),
+  PAYMENT_START_RECONCILIATION_QUEUE_URL: z.string().url().optional()
 });
 
 export type TestEnvironment = {
@@ -30,10 +34,14 @@ export type TestEnvironment = {
   baseUrl: string;
   wireMockUrl: string;
   webhookMockUrl: string;
+  webhookCallbackUrl: string;
   merchantId: string;
   authHeaders: Record<string, string>;
   pollTimeoutMs: number;
   allowDestructiveTests: boolean;
+  oracleEvidenceMode: boolean;
+  paymentEventsQueueUrl?: string;
+  paymentStartReconciliationQueueUrl?: string;
 };
 
 export function loadEnvironment(): TestEnvironment {
@@ -46,9 +54,13 @@ export function loadEnvironment(): TestEnvironment {
     baseUrl: parsed.MS_PAYMENT_BASE_URL.replace(/\/$/, ''),
     wireMockUrl: parsed.WIREMOCK_URL.replace(/\/$/, ''),
     webhookMockUrl: parsed.WEBHOOK_MOCK_URL.replace(/\/$/, ''),
+    webhookCallbackUrl: parsed.WEBHOOK_CALLBACK_URL.replace(/\/$/, ''),
     merchantId: parsed.MALGA_MERCHANT_ID,
     authHeaders,
     pollTimeoutMs: parsed.POLL_TIMEOUT_MS,
-    allowDestructiveTests: parsed.ALLOW_DESTRUCTIVE_TESTS === 'true'
+    allowDestructiveTests: parsed.ALLOW_DESTRUCTIVE_TESTS === 'true',
+    oracleEvidenceMode: parsed.ORACLE_EVIDENCE_MODE === 'true',
+    paymentEventsQueueUrl: parsed.PAYMENT_EVENTS_QUEUE_URL,
+    paymentStartReconciliationQueueUrl: parsed.PAYMENT_START_RECONCILIATION_QUEUE_URL
   };
 }

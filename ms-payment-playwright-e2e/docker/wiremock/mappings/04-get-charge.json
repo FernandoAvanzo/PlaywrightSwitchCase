@@ -1,1 +1,1 @@
-{"request":{"method":"GET","urlPathPattern":"/v1/charges/.*"},"response":{"status":200,"headers":{"Content-Type":"application/json"},"jsonBody":{"id":"charge-local-001","status":"pre_authorized","amount":2000,"paymentSource":{"cardId":"card-local-001"}}}}
+{"request":{"method":"GET","urlPathPattern":"/v1/charges/.*"},"response":{"status":200,"headers":{"Content-Type":"application/json"},"jsonBody":{"id":"{{request.pathSegments.[2]}}","status":"pre_authorized","amount":2000,"paymentSource":{"cardId":"card-local-001"}}}}

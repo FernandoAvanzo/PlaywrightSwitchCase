@@ -123,5 +123,6 @@ export interface PaymentResponse {
   capture_mode?: string;
   authorized_amount?: number;
   captured_amount?: number;
+  refunded_amount?: number;
   card?: { brand?: string; masked_pan?: string };
 }

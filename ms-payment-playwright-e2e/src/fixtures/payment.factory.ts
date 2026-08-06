@@ -3,7 +3,7 @@ import { CreatePaymentPayload, UpsertSplitReceiverPayload } from '../types/payme
 import { loadEnvironment } from '../config/environment';
 
 const env = loadEnvironment();
-const webhook = Buffer.from(`${env.webhookMockUrl}/webhooks/payment`).toString('base64');
+const webhook = Buffer.from(`${env.webhookCallbackUrl}/webhooks/payment`).toString('base64');
 export const splitReceiverDocument = { type: 'CPF', number: '52998224725', country: 'BR' };
 
 function shortId(): string {

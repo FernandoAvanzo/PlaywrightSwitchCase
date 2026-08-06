@@ -21,13 +21,30 @@ export class MsPaymentClient {
       headers: { ...env.authHeaders, ...(key ? { 'X-Idempotency-Key': key } : {}) }
     });
   }
+  async void(id: string, amount: number, key?: string) {
+    return this.request.post(`payments/${id}/void`, {
+      data: { amount },
+      headers: { ...env.authHeaders, ...(key ? { 'X-Idempotency-Key': key } : {}) }
+    });
+  }
+  async postMalgaWebhook(payload: unknown, headers: Record<string, string> = {}) {
+    return this.request.post('webhooks/malga', {
+      data: payload,
+      headers: { ...env.authHeaders, ...headers }
+    });
+  }
   async waitForStatus(id: string, accepted: string[]): Promise<PaymentResponse> {
+    let lastStatus = 'indisponível';
     await expect.poll(async () => {
       const response = await this.getPayment(id);
       if (!response.ok()) return false;
       const status = ((await response.json()) as PaymentResponse).status;
+      lastStatus = status;
       return accepted.includes(status);
-    }, { timeout: env.pollTimeoutMs }).toBe(true);
+    }, {
+      timeout: env.pollTimeoutMs,
+      message: `Pagamento ${id} deveria assumir ${accepted.join(', ')}; último status: ${lastStatus}`
+    }).toBe(true);
     return (await (await this.getPayment(id)).json()) as PaymentResponse;
   }
 }

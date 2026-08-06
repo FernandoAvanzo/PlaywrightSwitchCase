@@ -23,7 +23,7 @@ cp .env.local.example .env.local
 ```bash
 npm run infra:up       # dependências mockadas
 npm run infra:up:app   # dependências + aplicação alvo
-npm run doctor:env
+npm run doctor:env     # aguarda o readiness do Spring antes dos testes
 npm run test:local
 npm run infra:down
 ```

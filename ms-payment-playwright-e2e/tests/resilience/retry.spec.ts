@@ -31,9 +31,14 @@ test('@P0 @local @resilience retry de charge não duplica customer/card', async 
     response: { status: 201, jsonBody: { id: 'charge-retried', status: 'pre_authorized', amount: 2000 }, headers: { 'Content-Type': 'application/json' } },
     priority: 1
   });
-  const response = await new MsPaymentClient(request).createPayment(creditPayment());
+  const payload = creditPayment();
+  const response = await new MsPaymentClient(request).createPayment(payload);
   expect([200, 201, 202]).toContain(response.status());
   await expect.poll(async () => (await malga.requests('POST', '/v1/charges')).requests.length, { timeout: 150_000 }).toBeGreaterThanOrEqual(2);
-  expect((await malga.requests('POST', '/v1/customers')).requests).toHaveLength(1);
-  expect((await malga.requests('POST', '/v1/cards')).requests).toHaveLength(1);
+  const customerRequests = (await malga.requests('POST', '/v1/customers')).requests
+    .filter(request => request.body?.includes(payload.customer.email));
+  const cardRequests = (await malga.requests('POST', '/v1/cards')).requests
+    .filter(request => request.body?.includes(payload.card_details?.card_token ?? ''));
+  expect(customerRequests).toHaveLength(1);
+  expect(cardRequests).toHaveLength(1);
 });

@@ -10,15 +10,24 @@ function describeError(error: unknown): string {
   return String(error);
 }
 
-async function check(name: string, url: string) {
-  try {
-    const response = await fetch(url);
-    console.log(`${response.ok ? 'OK' : 'FAIL'} ${name}: ${response.status} ${url}`);
-    if (!response.ok) process.exitCode = 1;
-  } catch (error) {
-    console.error(`FAIL ${name}: ${url} (${describeError(error)})`);
-    process.exitCode = 1;
+async function check(name: string, url: string, attempts = 30) {
+  let lastError = 'sem resposta';
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        console.log(`OK ${name}: ${response.status} ${url}`);
+        return true;
+      }
+      lastError = `HTTP ${response.status}`;
+    } catch (error) {
+      lastError = describeError(error);
+    }
+    await new Promise(resolve => setTimeout(resolve, 1_000));
   }
+  console.error(`FAIL ${name}: ${url} (${lastError}; readiness excedeu ${attempts}s)`);
+  process.exitCode = 1;
+  return false;
 }
 
 async function main() {
